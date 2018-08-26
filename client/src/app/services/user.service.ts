@@ -1,11 +1,12 @@
 /** @format */
 
 import { Injectable } from '@angular/core';
-import { User } from 'firebase';
 import {
   AngularFirestore,
   AngularFirestoreDocument
 } from 'angularfire2/firestore';
+
+import { User } from '@app/models';
 
 @Injectable({
   providedIn: 'root'

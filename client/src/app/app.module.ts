@@ -12,24 +12,8 @@ import { AngularFireAuthModule } from 'angularfire2/auth';
 import { AngularFirestoreModule } from 'angularfire2/firestore';
 
 import { AppRoutingModule } from './app-routing.module';
+import { AppUIModule } from './app-ui.module';
 import { AppComponent } from './app.component';
-
-import { LayoutModule } from '@angular/cdk/layout';
-import {
-  MatToolbarModule,
-  MatButtonModule,
-  MatSidenavModule,
-  MatIconModule,
-  MatListModule,
-  MatGridListModule,
-  MatCardModule,
-  MatMenuModule,
-  MatFormFieldModule,
-  MatInputModule,
-  MatDatepickerModule,
-  MAT_DATE_LOCALE,
-  MatNativeDateModule
-} from '@angular/material';
 
 import {
   AuthForgotPasswordComponent,
@@ -70,28 +54,16 @@ import * as firebaseCredentials from '../../../firebase-credentials';
   ],
   entryComponents: [AuthForgotPasswordComponent, AuthSignUpComponent],
   imports: [
+    BrowserAnimationsModule,
     BrowserModule,
-    AppRoutingModule,
-    AngularFireModule.initializeApp(firebaseCredentials),
-    FlexLayoutModule,
     FormsModule,
     ReactiveFormsModule,
+    FlexLayoutModule,
+    AppRoutingModule,
+    AppUIModule,
+    AngularFireModule.initializeApp(firebaseCredentials),
     AngularFireAuthModule,
     AngularFirestoreModule,
-    BrowserAnimationsModule,
-    LayoutModule,
-    MatToolbarModule,
-    MatButtonModule,
-    MatSidenavModule,
-    MatIconModule,
-    MatListModule,
-    MatGridListModule,
-    MatCardModule,
-    MatMenuModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: environment.production
     })
@@ -102,8 +74,7 @@ import * as firebaseCredentials from '../../../firebase-credentials';
     UserDataResolver,
     AuthService,
     ExpenseService,
-    UserService,
-    { provide: MAT_DATE_LOCALE, useValue: 'pt-BR' }
+    UserService
   ],
   bootstrap: [AppComponent]
 })

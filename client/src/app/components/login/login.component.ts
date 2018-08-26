@@ -14,10 +14,10 @@ export class LoginComponent implements OnInit {
   ngOnInit() {}
 
   signIn() {
-    this.authService.signInWithEmailAndPassword(
-      'arantespp@gmail.com',
-      'pedro123'
-    );
+    // this.authService.signInWithEmailAndPassword(
+    //   'arantespp@gmail.com',
+    //   'pedro123'
+    // );
   }
 
   signOut() {

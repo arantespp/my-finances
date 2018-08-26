@@ -1,6 +1,46 @@
-<div style="width: 100vw; height: 100vh;" fxLayout="column" fxLayoutAlign="center center">
-  <div>
+<div style="width: 300px;">
+
+  <mat-card>
+
+    <mat-card-header>
+      <mat-card-title>
+        <h1>Minhas Finanças</h1>
+      </mat-card-title>
+      <mat-card-subtitle>Um app que te ajuda :)</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content [formGroup]="signInForm" fxLayout="column">
+
+      <mat-form-field style="width: 100%;">
+        <input type="text" matInput placeholder="Email" formControlName="email">
+      </mat-form-field>
+
+      <mat-form-field style="width: 100%;">
+        <input type="password" matInput placeholder="Senha" formControlName="password">
+      </mat-form-field>
+
+      <button style="width: 100%; margin-top: 5px;" mat-flat-button color="primary" (click)="signIn()">Login</button>
+
+      <mat-checkbox style="width: 100%; margin-top: 15px" formControlName="persistence">Relembrar</mat-checkbox>
+
+      <a style="cursor: pointer; width: 100%; margin: 25px 0px 0px 0px">Esqueceu a senha?</a>
+
+    </mat-card-content>
+
+    <div style="width: 100%; margin: 20px;">
+      <mat-divider></mat-divider>
+    </div>
+
+    <mat-card-content>
+      <button style="width: 100%; margin-top: 5px;" mat-flat-button color="primary" (click)="signInWithGoogle()">
+        Login com Google
+      </button>
+    </mat-card-content>
+
+  </mat-card>
+
+  <!-- <div>
     <button mat-flat-button color="primary" (click)="signIn()">Login</button>
     <button mat-flat-button color="primary" (click)="signOut()">Logout</button>
-  </div>
+  </div> -->
 </div>

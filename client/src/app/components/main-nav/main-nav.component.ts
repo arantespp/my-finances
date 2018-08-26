@@ -9,7 +9,7 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { AuthService, ExpenseService } from '@app/services';
+import { AuthService, UserService } from '@app/services';
 
 @Component({
   selector: 'app-components-main-nav',
@@ -21,13 +21,15 @@ export class MainNavComponent {
     .observe(Breakpoints.Handset)
     .pipe(map(result => result.matches));
 
-  data;
-  name;
+  user;
 
   constructor(
     private breakpointObserver: BreakpointObserver,
-    private authService: AuthService
-  ) {}
+    private authService: AuthService,
+    private userService: UserService
+  ) {
+    this.user = this.userService.user;
+  }
 
   signOut() {
     this.authService.signOut();
