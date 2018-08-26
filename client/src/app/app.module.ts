@@ -36,7 +36,7 @@ import { AuthService, ExpenseService, UserService } from '@app/services';
 
 import { environment } from '../environments/environment';
 
-import * as firebaseCredentials from '../../../firebase-credentials';
+import { firebaseCredentials } from '@credentials/firebase-credentials';
 
 @NgModule({
   declarations: [

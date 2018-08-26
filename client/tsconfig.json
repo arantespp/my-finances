@@ -13,6 +13,8 @@
     "typeRoots": ["node_modules/@types"],
     "lib": ["es2017", "dom"],
     "paths": {
+      "@credentials": ["src/credentials"],
+      "@credentials/*": ["src/credentials/*"],
       "@app/components": ["src/app/components"],
       "@app/components/*": ["src/app/components/*"],
       "@app/guards": ["src/app/guards"],
