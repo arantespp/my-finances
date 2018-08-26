@@ -1,0 +1,14 @@
+<form fxLayout='row' [formGroup]="expensesAddForm" fxLayoutGap="10px">
+  <app-datepicker formControlName="date"></app-datepicker>
+
+  <mat-form-field>
+    <input type="text" matInput placeholder="Descrição" formControlName="description">
+  </mat-form-field>
+
+  <mat-form-field>
+    <input type="number" matInput placeholder="Valor" formControlName="value" min="0">
+  </mat-form-field>
+
+  <button mat-stroked-button [disabled]="expensesAddForm.invalid" color="primary" (click)="addExpense()">Ok</button>
+  <button mat-stroked-button color="accent" (click)="resetForm()">Cancelar</button>
+</form>
