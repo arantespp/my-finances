@@ -1,0 +1,16 @@
+{
+	"name": "cloudformation",
+	"version": "0.0.6",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"upload": "aws s3 cp . s3://arantespp-my-finances --recursive --exclude 'package.json'",
+		"create-stack": "aws cloudformation create-stack --stack-name my-finances --template-url https://s3.amazonaws.com/arantespp-my-finances/template.yml",
+		"preupdate-stack": "npm run upload",
+		"update-stack": "aws cloudformation update-stack --stack-name my-finances --template-url https://s3.amazonaws.com/arantespp-my-finances/template.yml",
+		"postupdate-stack": "aws cloudformation wait stack-update-complete --stack-name my-finances"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
+}

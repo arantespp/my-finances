@@ -1,0 +1,30 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: My Finances AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
+    Default: my-finances
+    AllowedValues:
+      - my-finances
+
+Resources:
+  Database:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/arantespp-my-finances/database.yml
+      Parameters:
+        StackName: !Sub ${StackName}
+
+Outputs:
+  Region:
+    Description: Region
+    Value: !Sub ${AWS::Region}
+  StackName:
+    Description: StackName
+    Value: !Sub ${StackName}
+  Test:
+    Value: !GetAttr Database.Outputs.StocksPriceDynamoDBTableRef
