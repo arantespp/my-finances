@@ -182,6 +182,7 @@ Resources:
                   - cognito-sync:*
                   - cognito-identity:*
                 Resource: '*'
+
   MyFinancesIdentityPoolAuthorizedIAMRole:
     Type: AWS::IAM::Role
     DependsOn: MyFinancesAppSyncGraphQLApi
