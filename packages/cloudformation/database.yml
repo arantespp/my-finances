@@ -1,0 +1,31 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Database MyFinances AWS Cloudformation
+
+Resources:
+  StocksPriceDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Description: Stocks price DynamoDB Table
+    Properties:
+      TableName: my-finances-stocks-price
+      AttributeDefinitions:
+        - AttributeName: hashKey
+          AttributeType: S
+        - AttributeName: rangeKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: hashKey
+          KeyType: HASH
+        - AttributeName: rangeKey
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+Outputs:
+  StocksPriceDynamoDBTableRef:
+    Value: !Ref StocksPriceDynamoDBTable
+  StocksPriceDynamoDBTableArn:
+    Value: !GetAtt StocksPriceDynamoDBTable.Arn

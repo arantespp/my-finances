@@ -1,0 +1,19 @@
+{
+  "packages": [
+    "packages/*"
+  ],
+  "command": {
+    "publish": {
+      "allowBranch": "master",
+      "conventionalCommits": false,
+      "gitRemote": "origin",
+      "message": "chore(release): publish %s"
+    }
+  },
+  "ignoreChanges": [
+    "**/__fixtures__/**",
+    "**/__tests__/**",
+    "**/*.md"
+  ],
+  "version": "0.0.2"
+}

@@ -1,0 +1,52 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Cognito for MyFinances AWS Cloudformation
+
+Resources:
+  MyFinancesCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: my-finances-cognito-userpool
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      UsernameAttributes:
+        - email
+
+  MyFinancesCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Description: App Client used by AWS AppSync
+    Properties:
+      ClientName: my-finances-cognito-user-pool-client
+      ExplicitAuthFlows:
+        - ADMIN_NO_SRP_AUTH
+      GenerateSecret: false
+      UserPoolId: !Ref MyFinancesCognitoUserPool
+
+Outputs:
+  MyFinancesCognitoUserPoolClientClientId:
+    Description: MyFinances Cognito UserPool Client ClientID
+    Value: !Ref MyFinancesCognitoUserPoolClient
+  MyFinancesCognitoUserPoolProviderName:
+    Description: MyFinances Cognito UserPool ProviderName
+    Value: !GetAtt MyFinancesCognitoUserPool.ProviderName
+  MyFinancesCognitoUserPoolId:
+    Description: MyFinances Cognito UserPool Id
+    Value: !Ref MyFinancesCognitoUserPool

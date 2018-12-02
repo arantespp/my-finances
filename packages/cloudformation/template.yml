@@ -1,0 +1,59 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: My Finances AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
+    Default: my-finances
+    AllowedValues:
+      - my-finances
+
+Resources:
+  CognitoCloudformationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/cognito.yml
+
+  AppSyncApiCloudFormationStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - CognitoCloudformationStack
+      - DatabaseCloudformationStack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/app-sync-api.yml
+      Parameters:
+        MyFinancesCognitoUserPoolClientClientId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
+        MyFinancesCognitoUserPoolProviderName: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName
+        MyFinancesCognitoUserPoolId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolId
+        StocksPriceDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableRef
+        StocksPriceDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableArn
+
+  DatabaseCloudformationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/database.yml
+
+  StocksPriceCronjobCloudformationStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: DatabaseCloudformationStack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/stocks-price-cronjob.yml
+      Parameters:
+      Parameters:
+        MyFinancesCognitoUserPoolClientClientId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
+        MyFinancesCognitoUserPoolProviderName: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName
+
+Outputs:
+  Region:
+    Description: Region
+    Value: !Sub ${AWS::Region}
+  StackName:
+    Description: StackName
+    Value: !Sub ${StackName}
+  Test:
+    Value: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
+  Test2:
+    Value: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName

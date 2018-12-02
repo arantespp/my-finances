@@ -1,0 +1,17 @@
+{
+	"name": "cloudformation",
+	"version": "0.0.2",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"upload": "aws s3 cp . s3://my-finances-cloudformation --recursive --exclude 'package.json'",
+		"precreate-stack": "npm run upload",
+		"create-stack": "aws cloudformation create-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
+		"preupdate-stack": "npm run upload",
+		"update-stack": "aws cloudformation update-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
+		"postupdate-stack": "aws cloudformation wait stack-update-complete --stack-name my-finances"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
+}
