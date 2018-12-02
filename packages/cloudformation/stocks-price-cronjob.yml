@@ -1,0 +1,70 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Stocks Price Cronjob for MyFinances AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the stack
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  #     Policies:
+  #       - PolicyName: !Sub ${StackName}-LambdaAppSync
+  #         PolicyDocument:
+  #           Version: 2012-10-17
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - appsync:GraphQL
+  #               Resource:
+  #                 - !Join ['/', [!GetAtt AppSyncApi.Arn, '*']]
+
+  ## Cronjobs
+  StocksPriceCronjobLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackName}-stocks-price-cronjob-lambda-function
+      Handler: index.stocksPricesCronjob
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: my-finances-cloudformation
+        S3Key: stocks-price-cronjob.zip
+      Runtime: nodejs8.10
+      MemorySize: 128
+      Timeout: 300
+
+  StocksPriceCronjobEventsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Scheduled Rule
+      ScheduleExpression: cron(0 0-23 * * ? *)
+      # ScheduleExpression: rate(4 minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt StocksPriceCronjobLambdaFunction.Arn
+          Id: TargetFunctionV1
+
+  PermissionForEventsToInvokeStocksPriceCronjobLambdaFunction:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StocksPriceCronjobLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StocksPriceCronjobEventsRule.Arn

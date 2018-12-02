@@ -12,10 +12,17 @@ Parameters:
       - my-finances
 
 Resources:
-  Database:
+  DatabaseCloudformationStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://s3.amazonaws.com/arantespp-my-finances/database.yml
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/database.yml
+      Parameters:
+        StackName: !Sub ${StackName}
+
+  StocksPriceCronjobCloudformationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/stocks-price-cronjob.yml
       Parameters:
         StackName: !Sub ${StackName}
 
@@ -27,4 +34,4 @@ Outputs:
     Description: StackName
     Value: !Sub ${StackName}
   Test:
-    Value: !GetAttr Database.Outputs.StocksPriceDynamoDBTableRef
+    Value: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableRef
