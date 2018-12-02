@@ -18,9 +18,8 @@
     "baseUrl": "./",
     "rootDirs": ["./"],
     "paths": {
-      "@config": ["./config"]
+      "@config": ["./src/config"]
     },
-
     "typeRoots": ["node_modules/@types", "./typings.d.ts"],
     "types": ["node"],
     "esModuleInterop": true

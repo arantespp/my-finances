@@ -10,7 +10,10 @@
     "prebuild": "rm -rf dist",
     "build": "webpack",
     "postbuild": "npm run zip",
-    "upload": "aws s3 cp ./dist/stocks-price-cronjob.zip s3://my-finances-cloudformation"
+    "preupload": "npm run build",
+    "upload": "aws s3 cp ./dist/stocks-price-cronjob.zip s3://my-finances-cloudformation",
+    "predeploy": "npm run upload",
+    "deploy": "aws lambda update-function-code --function-name my-finances-stocks-price-cronjob-lambda-function --s3-bucket my-finances-cloudformation --s3-key stocks-price-cronjob.zip"
   },
   "author": "",
   "license": "ISC",
@@ -21,9 +24,15 @@
     "ts-jest": "^23.10.5",
     "ts-lint": "^4.5.1",
     "ts-loader": "^5.3.1",
+    "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "typescript": "^3.2.1",
     "webpack": "^4.26.1",
     "webpack-cli": "^3.1.2"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.368.0",
+    "cross-fetch": "^2.2.3",
+    "moment": "^2.22.2"
   }
 }

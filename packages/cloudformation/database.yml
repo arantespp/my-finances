@@ -4,17 +4,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: Database MyFinances AWS Cloudformation
 
-Parameters:
-  StackName:
-    Type: String
-    Description: Name of the stack
-
 Resources:
   StocksPriceDynamoDBTable:
     Type: AWS::DynamoDB::Table
     Description: Stocks price DynamoDB Table
     Properties:
-      TableName: !Sub ${StackName}-stocks-price
+      TableName: my-finances-stocks-price
       AttributeDefinitions:
         - AttributeName: hashKey
           AttributeType: S
@@ -32,3 +27,5 @@ Resources:
 Outputs:
   StocksPriceDynamoDBTableRef:
     Value: !Ref StocksPriceDynamoDBTable
+  StocksPriceDynamoDBTableArn:
+    Value: !GetAtt StocksPriceDynamoDBTable.Arn
