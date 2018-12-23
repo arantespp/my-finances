@@ -16,15 +16,15 @@
     "noImplicitAny": true,
     "strictNullChecks": true,
     "suppressImplicitAnyIndexErrors": true,
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "paths": {
+      "@assets/*": ["src/assets/*"],
+      "@components": ["src/components"],
+      "@components/*": ["src/components/*"],
+      "@config": ["src/config"],
+      "@graphql/*": ["src/graphql/*"],
+      "@utils/*": ["src/utils/*"]
+    }
   },
-  "exclude": [
-    "node_modules",
-    "build",
-    "scripts",
-    "acceptance-tests",
-    "webpack",
-    "jest",
-    "src/setupTests.ts"
-  ]
+  "exclude": ["node_modules", "build", "scripts", "acceptance-tests", "webpack", "jest", "src/setupTests.ts"]
 }

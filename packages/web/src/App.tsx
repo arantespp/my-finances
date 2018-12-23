@@ -1,19 +1,29 @@
-import * as React from 'react';
-import './App.scss';
+/** @format */
 
-import logo from './logo.svg';
+import * as React from 'react';
+
+import { Footer, Header, Menu } from '@components';
+
+import './App.scss';
 
 class App extends React.Component {
   public render() {
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <p className="App-intro">
-          To get started, edit <code>src/App.tsx</code> and save to reload.
-        </p>
+      <div className="App container">
+        <div className="header">
+          <Header />
+        </div>
+        <div className="content">
+          <div className="menu">
+            <Menu />
+          </div>
+          <div className="content">
+            <span>io</span>
+          </div>
+        </div>
+        <div className="footer">
+          <Footer />
+        </div>
       </div>
     );
   }
