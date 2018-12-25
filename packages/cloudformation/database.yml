@@ -2,14 +2,18 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Database MyFinances AWS Cloudformation
+Description: Database AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
 
 Resources:
   StocksPriceDynamoDBTable:
     Type: AWS::DynamoDB::Table
     Description: Stocks price DynamoDB Table
     Properties:
-      TableName: my-finances-stocks-price
+      TableName: !Sub ${StackName}-stocks-price
       AttributeDefinitions:
         - AttributeName: hashKey
           AttributeType: S

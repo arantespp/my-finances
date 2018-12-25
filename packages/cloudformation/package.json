@@ -9,7 +9,9 @@
 		"create-stack": "aws cloudformation create-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
 		"preupdate-stack": "npm run upload",
 		"update-stack": "aws cloudformation update-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
-		"postupdate-stack": "aws cloudformation wait stack-update-complete --stack-name my-finances"
+		"postupdate-stack": "aws cloudformation wait stack-update-complete --stack-name my-finances",
+		"describe-events": "aws cloudformation describe-stack-events --stack-name my-finances",
+		"describe-stack": "aws cloudformation describe-stacks --stack-name my-finances"
 	},
 	"keywords": [],
 	"author": "",

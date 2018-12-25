@@ -12,10 +12,19 @@ Parameters:
       - my-finances
 
 Resources:
+  DatabaseCloudformationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/database.yml
+      Parameters:
+        StackName: !Sub ${StackName}
+
   CognitoCloudformationStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/cognito.yml
+      Parameters:
+        StackName: !Sub ${StackName}
 
   AppSyncApiCloudFormationStack:
     Type: AWS::CloudFormation::Stack
@@ -23,18 +32,13 @@ Resources:
       - CognitoCloudformationStack
       - DatabaseCloudformationStack
     Properties:
-      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/app-sync-api.yml
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/appsync.yml
       Parameters:
-        MyFinancesCognitoUserPoolClientClientId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
-        MyFinancesCognitoUserPoolProviderName: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName
-        MyFinancesCognitoUserPoolId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolId
+        StackName: !Sub ${StackName}
+        UserPoolId: !GetAtt CognitoCloudformationStack.Outputs.CognitoUserPoolId
         StocksPriceDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableRef
         StocksPriceDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableArn
-
-  DatabaseCloudformationStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/database.yml
+        IdentityPoolAuthorizedIAMRoleRef: !GetAtt CognitoCloudformationStack.Outputs.IdentityPoolAuthorizedIAMRoleRef
 
   StocksPriceCronjobCloudformationStack:
     Type: AWS::CloudFormation::Stack
@@ -42,9 +46,9 @@ Resources:
     Properties:
       TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/stocks-price-cronjob.yml
       Parameters:
-      Parameters:
-        MyFinancesCognitoUserPoolClientClientId: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
-        MyFinancesCognitoUserPoolProviderName: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName
+        StackName: !Sub ${StackName}
+        StocksPriceDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableArn
+        IdentityPoolUnauthorizedIAMRoleRef: !GetAtt CognitoCloudformationStack.Outputs.IdentityPoolUnauthorizedIAMRoleRef
 
 Outputs:
   Region:
@@ -53,7 +57,15 @@ Outputs:
   StackName:
     Description: StackName
     Value: !Sub ${StackName}
-  Test:
-    Value: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolClientClientId
-  Test2:
-    Value: !GetAtt CognitoCloudformationStack.Outputs.MyFinancesCognitoUserPoolProviderName
+  CognitoUserPoolClientId:
+    Description: Cognito UserPool ClientId
+    Value: !GetAtt CognitoCloudformationStack.Outputs.CognitoUserPoolClientId
+  CognitoUserPoolId:
+    Description: Cognito UserPool Id
+    Value: !GetAtt CognitoCloudformationStack.Outputs.CognitoUserPoolId
+  CognitoIdentityPool:
+    Description: Cognito IdentityId
+    Value: !GetAtt CognitoCloudformationStack.Outputs.CognitoIdentityPool
+  AppSyncGraphQLApiEndpoint:
+    Description: AppSync GraphQL API Endpoint
+    Value: !GetAtt AppSyncApiCloudFormationStack.Outputs.AppSyncGraphQLApiEndpoint

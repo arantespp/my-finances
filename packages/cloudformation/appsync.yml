@@ -1,0 +1,160 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: AppSync GraphQLApi AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
+
+  UserPoolId:
+    Type: String
+
+  StocksPriceDynamoDBTableRef:
+    Type: String
+
+  StocksPriceDynamoDBTableArn:
+    Type: String
+
+  IdentityPoolAuthorizedIAMRoleRef:
+    Type: String
+
+Resources:
+  AppSyncGraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Description: AppSync GraphQLApi
+    Properties:
+      AuthenticationType: AWS_IAM
+      Name: !Sub ${StackName}-appsync-graphqlapi
+      UserPoolConfig:
+        UserPoolId: !Sub ${UserPoolId}
+        AwsRegion: !Sub ${AWS::Region}
+        DefaultAction: 'ALLOW'
+
+  AppSyncGraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Definition: |
+        type Stock {
+          ticker: String!
+          date: AWSDateTime!
+          price: Float!
+        }
+        input StockInput {
+          ticker: String!
+          date: AWSDateTime!
+          price: Float!
+        }
+        type Mutation {
+          addStockPrice(input: StockInput!): Stock!
+        }
+        type Query {
+          mostRecentStockPrice(ticker: String!): Stock!
+        }
+        ## type Subscription {
+        ## }
+        schema {
+          query: Query
+          mutation: Mutation
+          ## subscription: Subscription
+        }
+
+  ## Mutation
+  AddStockPriceMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: addStockPrice
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key" : {
+            "hashKey" : { "S" : "$ctx.args.input.ticker" },
+            "rangeKey": { "S" : "$ctx.args.input.date" }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set( $ctx.result.ticker = $ctx.result.hashKey )
+        #set( $ctx.result.date = $ctx.result.rangeKey )
+        $util.toJson($ctx.result)
+
+  ### DataSource
+  StocksPriceAppSyncDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: StocksPriceAppSyncDataSource
+      Description: AppSync data source for stocks price
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncDynamoDBIAMRole.Arn
+      DynamoDBConfig:
+        TableName: !Sub ${StocksPriceDynamoDBTableRef}
+        AwsRegion: !Sub ${AWS::Region}
+
+  ### IAM ###
+  AppSyncIAMPolicy:
+    Type: AWS::IAM::Policy
+    Description: Allow user consume AppSync when signed in
+    DependsOn: AppSyncGraphQLApi
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource:
+              - !Join ['/', [!GetAtt AppSyncGraphQLApi.Arn, '*']]
+      PolicyName: !Sub ${StackName}-appsync-iam-policy
+      Roles:
+        - !Sub ${IdentityPoolAuthorizedIAMRoleRef}
+
+  AppSyncDynamoDBIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackName}-appsync-dynamodb-iam-role
+      ManagedPolicyArns:
+        - Ref: AppSyncDynamoDBIAMManagedPolicy
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - appsync.amazonaws.com
+    DependsOn:
+      - AppSyncDynamoDBIAMManagedPolicy
+
+  AppSyncDynamoDBIAMManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Managed policy to allow AWS AppSync to access the tables created by this template.
+      Path: /appsync/
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:UpdateItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+            Resource:
+              - !Join ['', [!Sub '${StocksPriceDynamoDBTableArn}', '*']]
+
+Outputs:
+  AppSyncGraphQLApiEndpoint:
+    Description: AppSync GraphQL API Endpoint
+    Value: !GetAtt AppSyncGraphQLApi.GraphQLUrl

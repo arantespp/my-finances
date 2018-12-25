@@ -2,13 +2,17 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Cognito for MyFinances AWS Cloudformation
+Description: Cognito AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
 
 Resources:
-  MyFinancesCognitoUserPool:
+  CognitoUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: my-finances-cognito-userpool
+      UserPoolName: !Sub ${StackName}-cognito-userpool
       AutoVerifiedAttributes:
         - email
       Policies:
@@ -26,27 +30,113 @@ Resources:
         - Name: name
           AttributeDataType: String
           Mutable: true
-          Required: true
+          Required: false
       UsernameAttributes:
         - email
 
-  MyFinancesCognitoUserPoolClient:
+  CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
-    Description: App Client used by AWS AppSync
+    Description: Cognito User Pool Client
     Properties:
-      ClientName: my-finances-cognito-user-pool-client
+      ClientName: !Sub ${StackName}-cognito-user-pool-client
       ExplicitAuthFlows:
         - ADMIN_NO_SRP_AUTH
       GenerateSecret: false
-      UserPoolId: !Ref MyFinancesCognitoUserPool
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Join
+        - ' '
+        - !Split
+          - '-'
+          - !Sub ${StackName}-cognito-identity-pool
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserPoolClient
+          ProviderName: !GetAtt CognitoUserPool.ProviderName
+
+  IdentityPoolUnauthorizedIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+      Policies:
+        - PolicyName: CognitoUserSignInUnauthorizedPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - mobiletargeting:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: '*'
+
+  IdentityPoolAuthorizedIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+        - PolicyName: CognitoUserSignInAuthorizedPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - mobiletargeting:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: '*'
+
+  # Assigns the roles to the Identity Pool
+  CognitoIdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        unauthenticated: !GetAtt IdentityPoolUnauthorizedIAMRole.Arn
+        authenticated: !GetAtt IdentityPoolAuthorizedIAMRole.Arn
 
 Outputs:
-  MyFinancesCognitoUserPoolClientClientId:
-    Description: MyFinances Cognito UserPool Client ClientID
-    Value: !Ref MyFinancesCognitoUserPoolClient
-  MyFinancesCognitoUserPoolProviderName:
-    Description: MyFinances Cognito UserPool ProviderName
-    Value: !GetAtt MyFinancesCognitoUserPool.ProviderName
-  MyFinancesCognitoUserPoolId:
-    Description: MyFinances Cognito UserPool Id
-    Value: !Ref MyFinancesCognitoUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito UserPool ClientId
+    Value: !Ref CognitoUserPoolClient
+  CognitoUserPoolId:
+    Description: Cognito UserPool Id
+    Value: !Ref CognitoUserPool
+  CognitoIdentityPool:
+    Description: Cognito IdentityId
+    Value: !Ref CognitoIdentityPool
+  IdentityPoolUnauthorizedIAMRoleRef:
+    Description: Identity Pool Unauthorized IAM Role Reference
+    Value: !Ref IdentityPoolUnauthorizedIAMRole
+  IdentityPoolAuthorizedIAMRoleRef:
+    Description: Identity Pool Authorized IAM Role Reference
+    Value: !Ref IdentityPoolAuthorizedIAMRole

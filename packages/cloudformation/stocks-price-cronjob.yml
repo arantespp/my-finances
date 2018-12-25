@@ -2,13 +2,16 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Stocks Price Cronjob for MyFinances AWS Cloudformation
+Description: Stocks Price Cronjob AWS Cloudformation
 
 Parameters:
-  MyFinancesCognitoUserPoolClientClientId:
+  StackName:
     Type: String
 
-  MyFinancesCognitoUserPoolProviderName:
+  IdentityPoolUnauthorizedIAMRoleRef:
+    Type: String
+
+  StocksPriceDynamoDBTableArn:
     Type: String
 
 Resources:
@@ -32,14 +35,14 @@ Resources:
   StocksPriceCronjobLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: my-finances-stocks-price-cronjob-lambda-function
+      FunctionName: !Sub ${StackName}-stocks-price-cronjob-lambda-function
       Handler: index.stocksPricesCronjob
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: my-finances-cloudformation
         S3Key: stocks-price-cronjob.zip
       Runtime: nodejs8.10
-      MemorySize: 128
+      MemorySize: 256
       Timeout: 300
 
   StocksPriceCronjobEventsRule:
@@ -61,51 +64,21 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt StocksPriceCronjobEventsRule.Arn
 
-  ### Cognito
-  MyFinancesCognitoIdentityPool:
-    Type: AWS::Cognito::IdentityPool
+  ### IAM
+  LambdaIAMPolicy:
+    Type: AWS::IAM::Policy
+    Description: Allow cronjobs to perform DynamoDB actions
+    DependsOn: StocksPriceCronjobLambdaFunction
     Properties:
-      IdentityPoolName: MyFinancesCognitoIdentityPoolForLambda
-      AllowUnauthenticatedIdentities: true
-      CognitoIdentityProviders:
-        - ClientId: !Sub ${MyFinancesCognitoUserPoolClientClientId}
-          ProviderName: !Sub ${MyFinancesCognitoUserPoolProviderName}
-
-  MyFinancesIdentityPoolUnauthorizedIAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
+      PolicyDocument:
         Version: 2012-10-17
         Statement:
           - Effect: Allow
-            Principal:
-              Federated: cognito-identity.amazonaws.com
             Action:
-              - sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                cognito-identity.amazonaws.com:aud: !Ref MyFinancesCognitoIdentityPool
-              ForAnyValue:StringLike:
-                cognito-identity.amazonaws.com:amr: unauthenticated
-      Policies:
-        - PolicyName: MyFinancesCognitoUnauthorizedPolicyForLambda
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:PutItem
-                  - mobileanalytics:PutEvents
-                  - mobiletargeting:PutEvents
-                  - cognito-sync:*
-                  - cognito-identity:*
-                Resource: '*'
-
-  # Assigns the roles to the Identity Pool
-  IdentityPoolRoleMapping:
-    Type: AWS::Cognito::IdentityPoolRoleAttachment
-    Properties:
-      IdentityPoolId: !Ref MyFinancesCognitoIdentityPool
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+            Resource:
+              - !Join ['', [!Sub '${StocksPriceDynamoDBTableArn}', '*']]
+      PolicyName: !Sub ${StackName}-lambda-iam-policy
       Roles:
-        unauthenticated: !GetAtt MyFinancesIdentityPoolUnauthorizedIAMRole.Arn
+        - !Sub ${IdentityPoolUnauthorizedIAMRoleRef}

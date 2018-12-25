@@ -127,6 +127,7 @@ export async function stocksPricesCronjob() {
     const { tickers } = await getAllTickers();
     for (const ticker of tickers) {
       const res = await AlphaVantageQuote(ticker.AlphaVantageSymbol);
+      console.log(res.symbol);
       if (!!res) {
         await saveToDynamoDB(ticker.ticker, res);
       }
@@ -135,3 +136,5 @@ export async function stocksPricesCronjob() {
     console.log(e);
   }
 }
+
+// stocksPricesCronjob();
