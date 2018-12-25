@@ -55,11 +55,13 @@ const getAllTickers = async (): Promise<Tickers> => {
         rangeKey: { S: 'tickers' },
       },
       TableName,
-      AttributesToGet: ['tickers'],
       ConsistentRead: true,
     };
     const { Item } = await dynamodb.getItem(params).promise();
-    return AWS.DynamoDB.Converter.unmarshall(Item) as Tickers;
+    const converted = AWS.DynamoDB.Converter.unmarshall(Item);
+    delete converted.hashKey;
+    delete converted.rangeKey;
+    return { tickers: Object.keys(converted).map(key => converted[key]) };
   } catch (e) {
     throw e;
   }
@@ -127,7 +129,6 @@ export async function stocksPricesCronjob() {
     const { tickers } = await getAllTickers();
     for (const ticker of tickers) {
       const res = await AlphaVantageQuote(ticker.AlphaVantageSymbol);
-      console.log(res.symbol);
       if (!!res) {
         await saveToDynamoDB(ticker.ticker, res);
       }
