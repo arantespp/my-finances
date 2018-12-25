@@ -37,22 +37,31 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       Definition: |
-        type Stock {
+        type StockMetadata {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        input StockMetadataInput {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        type StockPrice {
           ticker: String!
           date: AWSDateTime!
           price: Float!
         }
-        input StockInput {
+        input StockPriceInput {
           ticker: String!
           date: AWSDateTime!
           price: Float!
         }
         type Mutation {
-          addStockPrice(input: StockInput!): Stock!
+          registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
+          unregisterStock(ticker: String): String!
         }
         type Query {
-          mostRecentStockPrice(ticker: String!): Stock!
           allRegisteredStocks: [String!]!
+          mostRecentStockPrice(ticker: String!): StockPrice!
         }
         ## type Subscription {
         ## }
@@ -63,27 +72,57 @@ Resources:
         }
 
   ## Mutation
-  AddStockPriceMutationAppSyncResolver:
+  RegisterStockMutationAppSyncResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncGraphQLSchema
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Mutation
-      FieldName: addStockPrice
+      FieldName: registerStock
       DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
       RequestMappingTemplate: |
         {
           "version" : "2017-02-28",
-          "operation" : "PutItem",
+          "operation" : "UpdateItem",
           "key" : {
-            "hashKey" : { "S" : "$ctx.args.input.ticker" },
-            "rangeKey": { "S" : "$ctx.args.input.date" }
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          },
+          "update" : {
+            "expression" : "SET #ticker = :ticker",
+            "expressionNames" : {
+                "#ticker" : "$ctx.args.stockMetadata.ticker"
+            },
+            "expressionValues" : {
+                ":ticker" : $util.dynamodb.toDynamoDBJson($ctx.args.stockMetadata)
+            }
           }
         }
       ResponseMappingTemplate: |
-        #set( $ctx.result.ticker = $ctx.result.hashKey )
-        #set( $ctx.result.date = $ctx.result.rangeKey )
-        $util.toJson($ctx.result)
+        $util.toJson($ctx.args.stockMetadata)
+
+  UnregisterStockMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: unregisterStock
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          },
+          "update" : {
+            "expression" : "REMOVE $ctx.args.ticker",
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.args.ticker)
 
   ## Query
   AllRegisteredStocksAppSyncResolver:
@@ -104,7 +143,13 @@ Resources:
           }
         }
       ResponseMappingTemplate: |
-        $util.toJson(['a', 'b'])
+        #set ($tickers = [])
+        #foreach( $item in $ctx.result.values() )
+          #if( $item.ticker)	
+            $util.qr($tickers.add($item.ticker))
+          #end
+        #end
+        $util.toJson($tickers)
 
   ### DataSource
   StocksPriceAppSyncDataSource:
