@@ -26,8 +26,8 @@ class Layout extends React.Component<Props> {
     const { components } = this.props;
     return (
       <Switch>
-        {components.map(({ path, component }) => (
-          <Route path={path} exact={true} component={component} />
+        {components.map(({ path, component }, index) => (
+          <Route key={index} path={path} exact={true} component={component} />
         ))}
       </Switch>
     );
@@ -37,8 +37,10 @@ class Layout extends React.Component<Props> {
     const { components } = this.props;
     return (
       <div>
-        {components.map(({ name, path }) => (
-          <Link to={path}>{name}</Link>
+        {components.map(({ name, path }, index) => (
+          <Link key={index} to={path}>
+            {name}
+          </Link>
         ))}
       </div>
     );

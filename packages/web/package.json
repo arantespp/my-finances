@@ -8,6 +8,7 @@
     "aws-appsync": "^1.7.0",
     "aws-appsync-react": "^1.2.5",
     "bulma": "^0.7.2",
+    "graphql-tag": "^2.10.0",
     "react": "^16.6.3",
     "react-apollo": "^2.3.3",
     "react-dom": "^16.6.3",

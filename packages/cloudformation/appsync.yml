@@ -52,6 +52,7 @@ Resources:
         }
         type Query {
           mostRecentStockPrice(ticker: String!): Stock!
+          allRegisteredStocks: [String!]!
         }
         ## type Subscription {
         ## }
@@ -83,6 +84,27 @@ Resources:
         #set( $ctx.result.ticker = $ctx.result.hashKey )
         #set( $ctx.result.date = $ctx.result.rangeKey )
         $util.toJson($ctx.result)
+
+  ## Query
+  AllRegisteredStocksAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: allRegisteredStocks
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "GetItem",
+          "key" : {
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson(['a', 'b'])
 
   ### DataSource
   StocksPriceAppSyncDataSource:
