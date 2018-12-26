@@ -60,7 +60,7 @@ Resources:
           unregisterStock(ticker: String): String!
         }
         type Query {
-          allRegisteredStocks: [String!]!
+          allRegisteredStocks: [StockMetadata]!
           mostRecentStockPrice(ticker: String!): StockPrice!
         }
         ## type Subscription {
@@ -146,7 +146,7 @@ Resources:
         #set ($tickers = [])
         #foreach( $item in $ctx.result.values() )
           #if( $item.ticker)	
-            $util.qr($tickers.add($item.ticker))
+            $util.qr($tickers.add($item))
           #end
         #end
         $util.toJson($tickers)

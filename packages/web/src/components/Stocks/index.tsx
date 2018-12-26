@@ -2,29 +2,29 @@
 
 import * as React from 'react';
 
-import gql from 'graphql-tag';
-import { Query } from 'react-apollo';
-
 import { Loading } from '@components';
+import RegisteredStock from './RegisteredStock';
+import RegisterStock from './RegisterStock';
 
-interface QueryData {
-  allRegisteredStocks: string[];
-}
-
-const QUERY = gql`
-  query {
-    allRegisteredStocks
-  }
-`;
+import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQuery } from '@graphql/queries/all-registered-stocks';
 
 class Stocks extends React.Component {
   public render() {
     return (
-      <Query<QueryData, {}> query={QUERY}>
+      <AllRegisteredStocksQuery query={ALL_REGISTERED_STOCKS_QUERY}>
         {({ loading, data }) => {
-          return loading ? <Loading /> : data!.allRegisteredStocks.map(ticker => <span key={ticker}>{ticker}</span>);
+          return (
+            <div className="container">
+              <RegisterStock />
+              {loading ? (
+                <Loading />
+              ) : (
+                data!.allRegisteredStocks.map(stock => <RegisteredStock key={stock.ticker} {...stock} />)
+              )}
+            </div>
+          );
         }}
-      </Query>
+      </AllRegisteredStocksQuery>
     );
   }
 }

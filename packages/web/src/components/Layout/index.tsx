@@ -13,7 +13,7 @@ interface Props {
 class Layout extends React.Component<Props> {
   public render() {
     return (
-      <div>
+      <div className="container">
         <Header />
         {this.Content()}
         {this.Menu()}
