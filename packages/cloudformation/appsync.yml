@@ -71,7 +71,8 @@ Resources:
           id: ID!
           name: String!
           createdAt: AWSDateTime!
-        }
+          # current: PortfolioData!
+        }        
         enum PortfolioView {
           viewOnly
           participate
@@ -79,13 +80,14 @@ Resources:
         type Mutation {
           registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
           unregisterStock(ticker: String!): String!
-          newPortfolio(userId: ID!, portfolioName: String!): String!
-          deletePortfolio(portfolioId: ID!): String!
+          newPortfolio(userId: ID!, portfolioName: String!): Portfolio!
+          # deletePortfolio(portfolioId: ID!): String!
           allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
         }
         type Query {
           allRegisteredStocks: [StockMetadata]!
           mostRecentStockPrice(ticker: String!): StockPrice!
+          allUserPortfolios(userId: ID!): [String]
         }
         ## type Subscription {
         ## }
@@ -96,27 +98,161 @@ Resources:
         }
 
   ## Functions
-  # AddPortfolioToUserAppSyncFunctionConfiguration:
-  #   Type: AWS::AppSync::FunctionConfiguration
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     Name: AddPortfolioToUserAppSyncFunctionConfiguration
-  #     FunctionVersion: 2018-05-29
-  #     DataSourceName: !GetAtt UsersAppSyncDataSource.Name
-  #     RequestMappingTemplate: |
-  #       #set($userId = $ctx.stash.userId)
-  #       #set($portfolioId = $ctx.stash.portfolioId)
-  #       {
-  #         "version" : "2017-02-28",
-  #         "operation" : "PutItem",
-  #         "key" : {
-  #           "hashKey" : { "S" : "$userId" },
-  #           "rangeKey": { "S" : "portfolio_$portfolioId" }
-  #         }
-  #       }
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.result)
+  NewPortfolioAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: NewPortfolioAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: !Sub
+        - |
+          #set($portfolioId = $ctx.stash.portfolioId)
+          #set($portfolioName = $ctx.stash.portfolioName)
+          #set($current = {
+            "hashKey" : $portfolioId,
+            "rangeKey" : "current"
+          })
+          #set($details = {
+            "hashKey" : $portfolioId,
+            "rangeKey" : "details",
+            "name": $portfolioName,
+            "createdAt": "$util.time.nowISO8601()"
+          })
+          #set($items = [$util.dynamodb.toMapValues($details), $util.dynamodb.toMapValues($current)] )
+          {
+            "version" : "2018-05-29",
+            "operation" : "BatchPutItem",
+            "tables" : {
+              "${TableName}": $util.toJson($items)
+            }
+          }
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+      ResponseMappingTemplate: !Sub
+        - |
+          #set($newPortfolio = $ctx.result.data["${TableName}"][0])
+          #set($newPortfolio.id = $ctx.stash.portfolioId)
+          #set($ctx.stash.newPortfolio = $newPortfolio)
+          $util.toJson($newPortfolio)
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+
+  AllowUserToViewPortfolioAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllowUserToViewPortfolioAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($userId = $ctx.stash.userId)
+        #set($portfolioId = $ctx.stash.portfolioId)
+        #set($allowUserToViewPortfolioKind = $ctx.stash.allowUserToViewPortfolioKind)
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key" : {
+            "hashKey" : { "S" : "$userId" },
+            "rangeKey": { "S" : "portfolio_$portfolioId" }
+          },
+          "attributeValues" : {
+            "kind": { "S" : "$allowUserToViewPortfolioKind" },  
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  AllUserPortfoliosIdAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllUserPortfoliosIdAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($userId = $ctx.stash.userId)
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
+            "expressionValues" : {
+              ":hashKey" : { "S" : "$userId" },
+              ":rangeKey" : { "S" : "portfolio" }
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($portfoliosIds = [])
+        #foreach($item in $ctx.result.items)
+          #set($portfolioId = $item.rangeKey.split("_")[1])
+          $util.qr($portfoliosIds.add($portfolioId))
+        #end
+        $util.toJson($portfoliosIds)
+
+  AllUserPortfoliosIdsAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllUserPortfoliosIdsAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($userId = $ctx.stash.userId)
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
+            "expressionValues" : {
+              ":hashKey" : { "S" : "$userId" },
+              ":rangeKey" : { "S" : "portfolio" }
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($portfoliosIds = [])
+        #foreach($item in $ctx.result.items)
+          #set($portfolioId = $item.rangeKey.split("_")[1])
+          $util.qr($portfoliosIds.add($portfolioId))
+        #end
+        #set($ctx.stash.portfoliosIds = $portfoliosIds)
+        $util.toJson($portfoliosIds)
+
+  AllUserPortfoliosAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllUserPortfoliosAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: !Sub
+        - |
+          #set($userId = $ctx.stash.userId)
+          #set($portfoliosIds = $ctx.stash.portfoliosIds)
+          {
+            "version": "2018-05-29",
+            "operation": "BatchGetItem",
+            #set($keys = [])
+            #foreach($portfolioId in $portfoliosIds)
+              $util.qr($tickers.add({
+                "haskKey": "$portfolioId",
+                "rangeKey": "details"
+              }))
+            #end
+            "tables" : {
+              "${TableName}": $util.toJson($keys)
+            }
+          }
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+      ResponseMappingTemplate: !Sub
+        - |
+          $util.toJson($ctx.result.data[${TableName}])
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
 
   ## Mutation
   # registerStock
@@ -181,54 +317,41 @@ Resources:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Mutation
       FieldName: newPortfolio
-      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
-      RequestMappingTemplate: !Sub
-        - |
-          #set($id = $util.autoId())
-          $util.qr($ctx.stash.put("portfolioId", $id))
-          $util.qr($ctx.stash.put("userId", $ctx.args.userId))
-          #set($current = {
-            "hashKey" : $id,
-            "rangeKey" : "current"
-          })
-          #set($details = {
-            "hashKey" : $id,
-            "rangeKey" : "details",
-            "name": $ctx.args.portfolioName,
-            "createdAt": "$util.time.nowISO8601()"
-          })
-          #set($items = [$util.dynamodb.toMapValues($current), $util.dynamodb.toMapValues($details)] )
-          {
-            "version" : "2018-05-29",
-            "operation" : "BatchPutItem",
-            "tables" : {
-              "${TableName}": $util.toJson($items)
-            }
-          }
-        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.stash.portfolioId)
-
-  # deletePortfolio
-  DeletePortfolioMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: deletePortfolio
-      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      Kind: PIPELINE
       RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "DeleteItem",
-          "key" : {
-            "hashKey" : { "S" : "$ctx.args.userId" },
-            "rangeKey": { "S" : "portfolio_$id" }
-          }
-        }
+        #set($id = $util.autoId())
+        $util.qr($ctx.stash.put("portfolioId", $id))
+        $util.qr($ctx.stash.put("portfolioName", $ctx.args.portfolioName))
+        $util.qr($ctx.stash.put("userId", $ctx.args.userId))
+        $util.qr($ctx.stash.put("allowUserToViewPortfolioKind", "participate"))
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt NewPortfolioAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt AllowUserToViewPortfolioAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
+        $util.toJson($ctx.stash.newPortfolio)
+
+  # # deletePortfolio
+  # DeletePortfolioMutationAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Mutation
+  #     FieldName: deletePortfolio
+  #     DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "DeleteItem",
+  #         "key" : {
+  #           "hashKey" : { "S" : "$ctx.args.userId" },
+  #           "rangeKey": { "S" : "portfolio_$id" }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.result)
 
   # allowUserToViewPortfolio
   AllowUserToViewPortfolioMutationAppSyncResolver:
@@ -256,7 +379,7 @@ Resources:
 
   ## Query
   # allRegisteredStocks
-  AllRegisteredStocksAppSyncResolver:
+  AllRegisteredStocksQueryAppSyncResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncGraphQLSchema
     Properties:
@@ -283,7 +406,7 @@ Resources:
         $util.toJson($tickers)
 
   # mostRecentStockPrice
-  MostRecentStockPriceAppSyncResolver:
+  MostRecentStockPriceQueryAppSyncResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncGraphQLSchema
     Properties:
@@ -311,6 +434,25 @@ Resources:
           "date": $item.rangeKey,
           "price": $item.price
         })
+
+  # allUserPortfolios
+  AllUserPortfoliosQueryAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: allUserPortfolios
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        $util.qr($ctx.stash.put("userId", $ctx.args.userId))
+        {
+        }
+      PipelineConfig:
+        Functions:
+          - !GetAtt AllUserPortfoliosIdsAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.prev.result)
 
   ### DataSource
   StocksPriceAppSyncDataSource:

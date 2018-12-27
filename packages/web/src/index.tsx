@@ -8,6 +8,7 @@ import { ApolloProvider } from 'react-apollo';
 import * as ReactDOM from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
 
+import { ErrorBoundary } from '@components';
 import client from '@graphql/client';
 import App from './App';
 
@@ -26,12 +27,14 @@ Auth.configure({
 });
 
 ReactDOM.render(
-  <BrowserRouter>
-    <ApolloProvider client={client}>
-      <Rehydrated>
-        <App />
-      </Rehydrated>
-    </ApolloProvider>
-  </BrowserRouter>,
+  <ErrorBoundary>
+    <BrowserRouter>
+      <ApolloProvider client={client}>
+        <Rehydrated>
+          <App />
+        </Rehydrated>
+      </ApolloProvider>
+    </BrowserRouter>
+  </ErrorBoundary>,
   document.getElementById('root') as HTMLElement,
 );
