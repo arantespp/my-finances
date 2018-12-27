@@ -9,7 +9,7 @@ import RegisterStock from './RegisterStock';
 import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQuery } from '@graphql/queries/all-registered-stocks';
 
 class Stocks extends React.Component {
-  public render() {
+  render() {
     return (
       <AllRegisteredStocksQuery query={ALL_REGISTERED_STOCKS_QUERY}>
         {({ loading, data }) => {

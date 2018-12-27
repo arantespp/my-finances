@@ -38,6 +38,10 @@ Resources:
         UserPoolId: !GetAtt CognitoCloudformationStack.Outputs.CognitoUserPoolId
         StocksPriceDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableRef
         StocksPriceDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableArn
+        UsersDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.UsersDynamoDBTableRef
+        UsersDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.UsersDynamoDBTableArn
+        InvestmentsDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.InvestmentsDynamoDBTableRef
+        InvestmentsDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.InvestmentsDynamoDBTableArn
         IdentityPoolAuthorizedIAMRoleRef: !GetAtt CognitoCloudformationStack.Outputs.IdentityPoolAuthorizedIAMRoleRef
 
   StocksPriceCronjobCloudformationStack:

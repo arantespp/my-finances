@@ -5,7 +5,7 @@ import * as React from 'react';
 import './styles.scss';
 
 class Header extends React.Component {
-  public render() {
+  render() {
     return (
       <div className="Header ">
         <span>Header</span>

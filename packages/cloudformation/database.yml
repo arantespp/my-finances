@@ -24,12 +24,52 @@ Resources:
           KeyType: HASH
         - AttributeName: rangeKey
           KeyType: RANGE
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
+      BillingMode: PAY_PER_REQUEST
+
+  UsersDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Description: User Data DynamoDB Table
+    Properties:
+      TableName: !Sub ${StackName}-users
+      AttributeDefinitions:
+        - AttributeName: hashKey
+          AttributeType: S
+        - AttributeName: rangeKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: hashKey
+          KeyType: HASH
+        - AttributeName: rangeKey
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  InvestmentsDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Description: Investments DynamoDB Table
+    Properties:
+      TableName: !Sub ${StackName}-investments
+      AttributeDefinitions:
+        - AttributeName: hashKey
+          AttributeType: S
+        - AttributeName: rangeKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: hashKey
+          KeyType: HASH
+        - AttributeName: rangeKey
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
 
 Outputs:
   StocksPriceDynamoDBTableRef:
     Value: !Ref StocksPriceDynamoDBTable
   StocksPriceDynamoDBTableArn:
     Value: !GetAtt StocksPriceDynamoDBTable.Arn
+  UsersDynamoDBTableRef:
+    Value: !Ref UsersDynamoDBTable
+  UsersDynamoDBTableArn:
+    Value: !GetAtt UsersDynamoDBTable.Arn
+  InvestmentsDynamoDBTableRef:
+    Value: !Ref InvestmentsDynamoDBTable
+  InvestmentsDynamoDBTableArn:
+    Value: !GetAtt InvestmentsDynamoDBTable.Arn

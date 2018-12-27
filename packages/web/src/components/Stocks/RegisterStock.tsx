@@ -18,12 +18,12 @@ interface State {
 }
 
 class RegisterStock extends React.Component<{}, State> {
-  public state = {
+  state = {
     AlphaVantageSymbol: '',
     ticker: '',
   };
 
-  public render() {
+  render() {
     return (
       <RegisterStockMutation mutation={REGISTER_STOCK_MUTATION} update={this.update}>
         {registerStock => {
@@ -104,11 +104,12 @@ class RegisterStock extends React.Component<{}, State> {
   };
 
   private tickerOnChange = (e: any) => {
-    this.setState({ ticker: e.target.value });
+    const ticker = (e.target.value as string).toUpperCase();
+    this.setState({ ticker, AlphaVantageSymbol: ticker + '.SA' });
   };
 
   private symbolOnChange = (e: any) => {
-    this.setState({ AlphaVantageSymbol: e.target.value });
+    this.setState({ AlphaVantageSymbol: (e.target.value as string).toUpperCase() });
   };
 }
 

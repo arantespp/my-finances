@@ -23,7 +23,7 @@
       "@components/*": ["src/components/*"],
       "@config": ["src/config"],
       "@graphql/*": ["src/graphql/*"],
-      "@utils/*": ["src/utils/*"]
+      "@utils": ["src/utils"]
     }
   },
   "exclude": ["node_modules", "build", "scripts", "acceptance-tests", "webpack", "jest", "src/setupTests.ts"]

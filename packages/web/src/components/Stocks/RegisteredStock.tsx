@@ -12,13 +12,40 @@ import {
 } from '@graphql/mutations/unregister-stock';
 import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQueryResponse } from '@graphql/queries/all-registered-stocks';
 
-const RegisteredStock = ({ ticker, AlphaVantageSymbol }: { ticker: string; AlphaVantageSymbol: string }) => {
-  const onClick = (
+interface Props {
+  ticker: string;
+  AlphaVantageSymbol: string;
+}
+
+class RegisteredStock extends React.Component<Props> {
+  render() {
+    const { AlphaVantageSymbol, ticker } = this.props;
+    return (
+      <UnregisterStockMutation mutation={UNREGISTER_STOCK_MUTATION} update={this.update} variables={{ ticker }}>
+        {(unregisterStock, { loading }) => {
+          return (
+            <div>
+              <span>{ticker}</span>
+              <br />
+              <span>{AlphaVantageSymbol}</span>
+              <br />
+              <a className={`button is-danger ${loading && 'is-loading'}`} onClick={this.onClick(unregisterStock)}>
+                Remover
+              </a>
+            </div>
+          );
+        }}
+      </UnregisterStockMutation>
+    );
+  }
+
+  private onClick = (
     unregisterStock: MutationFn<UnregisterStockMutationResponse, UnregisterStockMutationVariables>,
   ) => async () => {
     await unregisterStock();
   };
-  const update: MutationUpdaterFn<UnregisterStockMutationResponse> = (cache, { data }) => {
+
+  private update: MutationUpdaterFn<UnregisterStockMutationResponse> = (cache, { data }) => {
     const { unregisterStock } = data as UnregisterStockMutationResponse;
     const { allRegisteredStocks } = cache.readQuery({
       query: ALL_REGISTERED_STOCKS_QUERY,
@@ -31,23 +58,6 @@ const RegisteredStock = ({ ticker, AlphaVantageSymbol }: { ticker: string; Alpha
       data: newData,
     });
   };
-  return (
-    <UnregisterStockMutation mutation={UNREGISTER_STOCK_MUTATION} update={update} variables={{ ticker }}>
-      {(unregisterStock, { loading }) => {
-        return (
-          <div>
-            <span>{ticker}</span>
-            <br />
-            <span>{AlphaVantageSymbol}</span>
-            <br />
-            <a className={`button is-danger ${loading && 'is-loading'}`} onClick={onClick(unregisterStock)}>
-              Remover
-            </a>
-          </div>
-        );
-      }}
-    </UnregisterStockMutation>
-  );
-};
+}
 
 export default RegisteredStock;

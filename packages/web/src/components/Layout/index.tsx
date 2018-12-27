@@ -11,12 +11,12 @@ interface Props {
 }
 
 class Layout extends React.Component<Props> {
-  public render() {
+  render() {
     return (
       <div className="container">
         <Header />
-        {this.Content()}
         {this.Menu()}
+        {this.Content()}
         <Footer />
       </div>
     );

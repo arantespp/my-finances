@@ -5,7 +5,7 @@ import * as React from 'react';
 import './styles.scss';
 
 class Menu extends React.Component {
-  public render() {
+  render() {
     return (
       <div className="Menu">
         <div>
