@@ -7,10 +7,11 @@ import { Loading } from '@components';
 import NewPortfolio from './NewPortfolio';
 import PortfolioCard from './PortfolioCard';
 
-import { ALL_USER_PORTFOLIOS_QUERY, AllUserPortfoliosQuery } from '@graphql/queries/all-user-portfolios';
+import { USER_PORTFOLIOS_QUERY, UserPortfoliosQuery } from '@graphql/queries/user-portfolios';
 
 import { userHandler } from '@utils';
 
+import './styles.scss';
 interface State {
   userId: string;
 }
@@ -28,19 +29,23 @@ class Investments extends React.Component<{}, State> {
   render() {
     const { userId } = this.state;
 
-    return (
-      <div>
-        <NewPortfolio />
-        {!!!userId ? (
-          <Loading />
-        ) : (
-          <AllUserPortfoliosQuery query={ALL_USER_PORTFOLIOS_QUERY} variables={{ userId }}>
-            {({ data, loading }) => {
-              console.log(data);
-              return loading ? <Loading /> : <PortfolioCard />;
-            }}
-          </AllUserPortfoliosQuery>
-        )}
+    return !!!userId ? (
+      <Loading />
+    ) : (
+      <div className="Investments">
+        <NewPortfolio userId={userId} />
+        <UserPortfoliosQuery query={USER_PORTFOLIOS_QUERY} variables={{ userId }}>
+          {({ data, loading }) => {
+            console.log(data);
+            return loading ? (
+              <Loading />
+            ) : data!.user.portfolios.length !== 0 ? (
+              data!.user.portfolios.map(portfolio => <PortfolioCard key={portfolio.id} {...portfolio} />)
+            ) : (
+              'Não possui portfolios'
+            );
+          }}
+        </UserPortfoliosQuery>
       </div>
     );
   }

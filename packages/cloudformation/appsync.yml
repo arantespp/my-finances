@@ -49,45 +49,60 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       Definition: |
-        type StockMetadata {
-          AlphaVantageSymbol: String!
-          ticker: String!
-        }
-        input StockMetadataInput {
-          AlphaVantageSymbol: String!
-          ticker: String!
-        }
-        type StockPrice {
-          ticker: String!
-          date: AWSDateTime!
-          price: Float!
-        }
-        input StockPriceInput {
-          ticker: String!
-          date: AWSDateTime!
-          price: Float!
+        type User {
+          id: ID!
+          portfolios: [Portfolio]!
         }
         type Portfolio {
           id: ID!
           name: String!
           createdAt: AWSDateTime!
+          participation: PortfolioParticipation!
+          # participants: [PortfolioParticipants!]!
           # current: PortfolioData!
-        }        
-        enum PortfolioView {
+        }
+        enum PortfolioParticipation {
           viewOnly
           participate
+          owner
         }
+        # type StockMetadata {
+        #   AlphaVantageSymbol: String!
+        #   ticker: String!
+        # }
+        # input StockMetadataInput {
+        #   AlphaVantageSymbol: String!
+        #   ticker: String!
+        # }
+        # type StockPrice {
+        #   ticker: String!
+        #   date: AWSDateTime!
+        #   price: Float!
+        # }
+        # input StockPriceInput {
+        #   ticker: String!
+        #   date: AWSDateTime!
+        #   price: Float!
+        # }
+
+
+        # type PortfolioParticipants {
+        #   userId: ID!
+        #   portfolioView: PortfolioView!
+        # }
+
         type Mutation {
-          registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
-          unregisterStock(ticker: String!): String!
           newPortfolio(userId: ID!, portfolioName: String!): Portfolio!
+          # registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
+          # unregisterStock(ticker: String!): String!
           # deletePortfolio(portfolioId: ID!): String!
-          allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
+          # allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
         }
         type Query {
-          allRegisteredStocks: [StockMetadata]!
-          mostRecentStockPrice(ticker: String!): StockPrice!
-          allUserPortfolios(userId: ID!): [String]
+          user(id: ID!): User
+          # allRegisteredStocks: [StockMetadata]!
+          # mostRecentStockPrice(ticker: String!): StockPrice!
+          # allUserPortfolios(userId: ID!): [String]
         }
         ## type Subscription {
         ## }
@@ -110,17 +125,27 @@ Resources:
         - |
           #set($portfolioId = $ctx.stash.portfolioId)
           #set($portfolioName = $ctx.stash.portfolioName)
+          #set($userId = $ctx.stash.userId)
           #set($current = {
-            "hashKey" : $portfolioId,
+            "hashKey" : "$portfolioId",
             "rangeKey" : "current"
           })
           #set($details = {
-            "hashKey" : $portfolioId,
+            "hashKey" : "$portfolioId",
             "rangeKey" : "details",
-            "name": $portfolioName,
+            "name": "$portfolioName",
             "createdAt": "$util.time.nowISO8601()"
           })
-          #set($items = [$util.dynamodb.toMapValues($details), $util.dynamodb.toMapValues($current)] )
+          #set($user = {
+            "hashKey" : "$portfolioId",
+            "rangeKey" : "user_$userId",
+            "participation" : "owner"
+          })
+          #set($items = [
+            $util.dynamodb.toMapValues($details),
+            $util.dynamodb.toMapValues($current),
+            $util.dynamodb.toMapValues($user)
+          ])
           {
             "version" : "2018-05-29",
             "operation" : "BatchPutItem",
@@ -133,94 +158,35 @@ Resources:
         - |
           #set($newPortfolio = $ctx.result.data["${TableName}"][0])
           #set($newPortfolio.id = $ctx.stash.portfolioId)
+          #set($newPortfolio.participation = "owner")
           #set($ctx.stash.newPortfolio = $newPortfolio)
           $util.toJson($newPortfolio)
         - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
 
-  AllowUserToViewPortfolioAppSyncFunctionConfiguration:
+  AllUserPortfoliosMetadataAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AllowUserToViewPortfolioAppSyncFunctionConfiguration
+      Name: AllUserPortfoliosMetadataAppSyncFunctionConfiguration
       FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        #set($userId = $ctx.stash.userId)
-        #set($portfolioId = $ctx.stash.portfolioId)
-        #set($allowUserToViewPortfolioKind = $ctx.stash.allowUserToViewPortfolioKind)
-        {
-          "version" : "2017-02-28",
-          "operation" : "PutItem",
-          "key" : {
-            "hashKey" : { "S" : "$userId" },
-            "rangeKey": { "S" : "portfolio_$portfolioId" }
-          },
-          "attributeValues" : {
-            "kind": { "S" : "$allowUserToViewPortfolioKind" },  
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
-
-  AllUserPortfoliosIdAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AllUserPortfoliosIdAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
       RequestMappingTemplate: |
         #set($userId = $ctx.stash.userId)
         {
           "version" : "2017-02-28",
           "operation" : "Query",
+          "index": "range-key-index",
           "query" : {
-            "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
-            "expressionValues" : {
-              ":hashKey" : { "S" : "$userId" },
-              ":rangeKey" : { "S" : "portfolio" }
+            "expression" : "rangeKey = :rangeKey",
+            "expressionValues" : {              
+              ":rangeKey" : { "S" : "user_$userId" }
             }
           }
         }
       ResponseMappingTemplate: |
-        #set($portfoliosIds = [])
-        #foreach($item in $ctx.result.items)
-          #set($portfolioId = $item.rangeKey.split("_")[1])
-          $util.qr($portfoliosIds.add($portfolioId))
-        #end
-        $util.toJson($portfoliosIds)
-
-  AllUserPortfoliosIdsAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AllUserPortfoliosIdsAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        #set($userId = $ctx.stash.userId)
-        {
-          "version" : "2017-02-28",
-          "operation" : "Query",
-          "query" : {
-            "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
-            "expressionValues" : {
-              ":hashKey" : { "S" : "$userId" },
-              ":rangeKey" : { "S" : "portfolio" }
-            }
-          }
-        }
-      ResponseMappingTemplate: |
-        #set($portfoliosIds = [])
-        #foreach($item in $ctx.result.items)
-          #set($portfolioId = $item.rangeKey.split("_")[1])
-          $util.qr($portfoliosIds.add($portfolioId))
-        #end
-        #set($ctx.stash.portfoliosIds = $portfoliosIds)
-        $util.toJson($portfoliosIds)
+        #set($ctx.stash.userPortfoliosMetadata = $ctx.result.items)
+        $util.toJson($ctx.result.items)
 
   AllUserPortfoliosAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
@@ -232,87 +198,73 @@ Resources:
       DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
       RequestMappingTemplate: !Sub
         - |
-          #set($userId = $ctx.stash.userId)
-          #set($portfoliosIds = $ctx.stash.portfoliosIds)
           {
             "version": "2018-05-29",
             "operation": "BatchGetItem",
             #set($keys = [])
-            #foreach($portfolioId in $portfoliosIds)
-              $util.qr($tickers.add({
-                "haskKey": "$portfolioId",
-                "rangeKey": "details"
+            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
+              #set($portfolioId = $portfolioMetadata.hashKey)
+              $util.qr($keys.add({
+                "hashKey": { "S" : "$portfolioId" },
+                "rangeKey": { "S" : "details" }
+              }))
+            #end
+            #if( $keys.isEmpty() )
+              $util.qr($keys.add({
+                "hashKey": { "S" : "fakeId" },
+                "rangeKey": { "S" : "details" }
               }))
             #end
             "tables" : {
-              "${TableName}": $util.toJson($keys)
+              "${TableName}": {
+                "keys": $util.toJson($keys)
+              }
             }
           }
         - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
       ResponseMappingTemplate: !Sub
         - |
-          $util.toJson($ctx.result.data[${TableName}])
+          #set($portfolios = $ctx.result.data["${TableName}"])
+          #foreach($portfolio in $portfolios)
+            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
+              #if($portfolio.hashKey == $portfolioMetadata.hashKey)
+                #set($portfolio.id = $portfolio.hashKey)
+                #set($portfolio.participation = $portfolioMetadata.participation)                
+              #end
+            #end
+          #end
+          #if( !$portfolios[0] )
+            $util.toJson([])
+          #else
+            $util.toJson($portfolios)
+          #end
         - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
 
+  ## User
+  # portfolios
+  PortfoliosUserAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: User
+      FieldName: portfolios
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        $util.qr($ctx.stash.put("userId", $ctx.source.id))        
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt AllUserPortfoliosMetadataAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt AllUserPortfoliosAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
   ## Mutation
-  # registerStock
-  RegisterStockMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: registerStock
-      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "UpdateItem",
-          "key" : {
-            "hashKey" : { "S" : "metadata" },
-            "rangeKey": { "S" : "tickers" }
-          },
-          "update" : {
-            "expression" : "SET #ticker = :ticker",
-            "expressionNames" : {
-                "#ticker" : "$ctx.args.stockMetadata.ticker"
-            },
-            "expressionValues" : {
-                ":ticker" : $util.dynamodb.toDynamoDBJson($ctx.args.stockMetadata)
-            }
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.args.stockMetadata)
-
-  # unregisterStock
-  UnregisterStockMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: unregisterStock
-      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "UpdateItem",
-          "key" : {
-            "hashKey" : { "S" : "metadata" },
-            "rangeKey": { "S" : "tickers" }
-          },
-          "update" : {
-            "expression" : "REMOVE $ctx.args.ticker",
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.args.ticker)
-
   # newPortfolio
   NewPortfolioMutationAppSyncResolver:
     Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
+    DependsOn: NewPortfolioAppSyncFunctionConfiguration
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Mutation
@@ -323,138 +275,303 @@ Resources:
         $util.qr($ctx.stash.put("portfolioId", $id))
         $util.qr($ctx.stash.put("portfolioName", $ctx.args.portfolioName))
         $util.qr($ctx.stash.put("userId", $ctx.args.userId))
-        $util.qr($ctx.stash.put("allowUserToViewPortfolioKind", "participate"))
         {}
       PipelineConfig:
         Functions:
           - !GetAtt NewPortfolioAppSyncFunctionConfiguration.FunctionId
-          - !GetAtt AllowUserToViewPortfolioAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
         $util.toJson($ctx.stash.newPortfolio)
 
-  # # deletePortfolio
-  # DeletePortfolioMutationAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
+  ## Query
+  # user
+  UserQueryAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: user
+      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "payload": $utils.toJson($ctx.args)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  # AllowUserToViewPortfolioAppSyncFunctionConfiguration:
+  #   Type: AWS::AppSync::FunctionConfiguration
   #   DependsOn: AppSyncGraphQLSchema
   #   Properties:
   #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Mutation
-  #     FieldName: deletePortfolio
-  #     DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+  #     Name: AllowUserToViewPortfolioAppSyncFunctionConfiguration
+  #     FunctionVersion: 2018-05-29
+  #     DataSourceName: !GetAtt UsersAppSyncDataSource.Name
   #     RequestMappingTemplate: |
+  #       #set($userId = $ctx.stash.userId)
+  #       #set($portfolioId = $ctx.stash.portfolioId)
+  #       #set($allowUserToViewPortfolioKind = $ctx.stash.allowUserToViewPortfolioKind)
   #       {
   #         "version" : "2017-02-28",
-  #         "operation" : "DeleteItem",
+  #         "operation" : "PutItem",
   #         "key" : {
-  #           "hashKey" : { "S" : "$ctx.args.userId" },
-  #           "rangeKey": { "S" : "portfolio_$id" }
+  #           "hashKey" : { "S" : "$userId" },
+  #           "rangeKey": { "S" : "portfolio_$portfolioId" }
+  #         },
+  #         "attributeValues" : {
+  #           "kind": { "S" : "$allowUserToViewPortfolioKind" },
   #         }
   #       }
   #     ResponseMappingTemplate: |
   #       $util.toJson($ctx.result)
 
-  # allowUserToViewPortfolio
-  AllowUserToViewPortfolioMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: allowUserToViewPortfolio
-      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "PutItem",
-          "key" : {
-            "hashKey" : { "S" : "$ctx.args.userId" },
-            "rangeKey": { "S" : "portfolio_$ctx.args.portfolioId" }
-          },
-          "attributeValues" : {
-            "kind": { "S" : "$ctx.args.kind" },            
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
+  # AllUserPortfoliosIdAppSyncFunctionConfiguration:
+  #   Type: AWS::AppSync::FunctionConfiguration
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     Name: AllUserPortfoliosIdAppSyncFunctionConfiguration
+  #     FunctionVersion: 2018-05-29
+  #     DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       #set($userId = $ctx.stash.userId)
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "Query",
+  #         "query" : {
+  #           "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
+  #           "expressionValues" : {
+  #             ":hashKey" : { "S" : "$userId" },
+  #             ":rangeKey" : { "S" : "portfolio" }
+  #           }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       #set($portfoliosIds = [])
+  #       #foreach($item in $ctx.result.items)
+  #         #set($portfolioId = $item.rangeKey.split("_")[1])
+  #         $util.qr($portfoliosIds.add($portfolioId))
+  #       #end
+  #       $util.toJson($portfoliosIds)
 
-  ## Query
+  # AllUserPortfoliosAppSyncFunctionConfiguration:
+  #   Type: AWS::AppSync::FunctionConfiguration
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     Name: AllUserPortfoliosAppSyncFunctionConfiguration
+  #     FunctionVersion: 2018-05-29
+  #     DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+  #     RequestMappingTemplate: !Sub
+  #       - |
+  #         #set($userId = $ctx.stash.userId)
+  #         #set($portfoliosIds = $ctx.stash.portfoliosIds)
+  #         {
+  #           "version": "2018-05-29",
+  #           "operation": "BatchGetItem",
+  #           #set($keys = [])
+  #           #foreach($portfolioId in $portfoliosIds)
+  #             $util.qr($tickers.add({
+  #               "haskKey": "$portfolioId",
+  #               "rangeKey": "details"
+  #             }))
+  #           #end
+  #           "tables" : {
+  #             "${TableName}": $util.toJson($keys)
+  #           }
+  #         }
+  #       - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+  #     ResponseMappingTemplate: !Sub
+  #       - |
+  #         $util.toJson($ctx.result.data[${TableName}])
+  #       - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+
+  ## Mutation
+  # # registerStock
+  # RegisterStockMutationAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Mutation
+  #     FieldName: registerStock
+  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "UpdateItem",
+  #         "key" : {
+  #           "hashKey" : { "S" : "metadata" },
+  #           "rangeKey": { "S" : "tickers" }
+  #         },
+  #         "update" : {
+  #           "expression" : "SET #ticker = :ticker",
+  #           "expressionNames" : {
+  #               "#ticker" : "$ctx.args.stockMetadata.ticker"
+  #           },
+  #           "expressionValues" : {
+  #               ":ticker" : $util.dynamodb.toDynamoDBJson($ctx.args.stockMetadata)
+  #           }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.args.stockMetadata)
+
+  # # unregisterStock
+  # UnregisterStockMutationAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Mutation
+  #     FieldName: unregisterStock
+  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "UpdateItem",
+  #         "key" : {
+  #           "hashKey" : { "S" : "metadata" },
+  #           "rangeKey": { "S" : "tickers" }
+  #         },
+  #         "update" : {
+  #           "expression" : "REMOVE $ctx.args.ticker",
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.args.ticker)
+
+  # # # deletePortfolio
+  # # DeletePortfolioMutationAppSyncResolver:
+  # #   Type: AWS::AppSync::Resolver
+  # #   DependsOn: AppSyncGraphQLSchema
+  # #   Properties:
+  # #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  # #     TypeName: Mutation
+  # #     FieldName: deletePortfolio
+  # #     DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+  # #     RequestMappingTemplate: |
+  # #       {
+  # #         "version" : "2017-02-28",
+  # #         "operation" : "DeleteItem",
+  # #         "key" : {
+  # #           "hashKey" : { "S" : "$ctx.args.userId" },
+  # #           "rangeKey": { "S" : "portfolio_$id" }
+  # #         }
+  # #       }
+  # #     ResponseMappingTemplate: |
+  # #       $util.toJson($ctx.result)
+
+  # # allowUserToViewPortfolio
+  # AllowUserToViewPortfolioMutationAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Mutation
+  #     FieldName: allowUserToViewPortfolio
+  #     DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "PutItem",
+  #         "key" : {
+  #           "hashKey" : { "S" : "$ctx.args.userId" },
+  #           "rangeKey": { "S" : "portfolio_$ctx.args.portfolioId" }
+  #         },
+  #         "attributeValues" : {
+  #           "kind": { "S" : "$ctx.args.kind" },
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.result)
+
   # allRegisteredStocks
-  AllRegisteredStocksQueryAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Query
-      FieldName: allRegisteredStocks
-      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "GetItem",
-          "key" : {
-            "hashKey" : { "S" : "metadata" },
-            "rangeKey": { "S" : "tickers" }
-          }
-        }
-      ResponseMappingTemplate: |
-        #set ($tickers = [])
-        #foreach( $item in $ctx.result.values() )
-          #if( $item.ticker)	
-            $util.qr($tickers.add($item))
-          #end
-        #end
-        $util.toJson($tickers)
+  # AllRegisteredStocksQueryAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Query
+  #     FieldName: allRegisteredStocks
+  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "GetItem",
+  #         "key" : {
+  #           "hashKey" : { "S" : "metadata" },
+  #           "rangeKey": { "S" : "tickers" }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       #set ($tickers = [])
+  #       #foreach( $item in $ctx.result.values() )
+  #         #if( $item.ticker)
+  #           $util.qr($tickers.add($item))
+  #         #end
+  #       #end
+  #       $util.toJson($tickers)
 
-  # mostRecentStockPrice
-  MostRecentStockPriceQueryAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Query
-      FieldName: mostRecentStockPrice
-      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version" : "2017-02-28",
-          "operation" : "Query",
-          "query" : {
-            "expression" : "hashKey = :hashKey",
-            "expressionValues" : {
-              ":hashKey" : { "S" : "$ctx.args.ticker" }
-            }
-          },
-          "limit": 1,
-          "scanIndexForward": false
-        }
-      ResponseMappingTemplate: |
-        #set( $item = $ctx.result.items[0] )
-        $util.toJson({
-          "ticker": $item.hashKey,
-          "date": $item.rangeKey,
-          "price": $item.price
-        })
+  # # mostRecentStockPrice
+  # MostRecentStockPriceQueryAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Query
+  #     FieldName: mostRecentStockPrice
+  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version" : "2017-02-28",
+  #         "operation" : "Query",
+  #         "query" : {
+  #           "expression" : "hashKey = :hashKey",
+  #           "expressionValues" : {
+  #             ":hashKey" : { "S" : "$ctx.args.ticker" }
+  #           }
+  #         },
+  #         "limit": 1,
+  #         "scanIndexForward": false
+  #       }
+  #     ResponseMappingTemplate: |
+  #       #set( $item = $ctx.result.items[0] )
+  #       $util.toJson({
+  #         "ticker": $item.hashKey,
+  #         "date": $item.rangeKey,
+  #         "price": $item.price
+  #       })
 
-  # allUserPortfolios
-  AllUserPortfoliosQueryAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Query
-      FieldName: allUserPortfolios
-      Kind: PIPELINE
-      RequestMappingTemplate: |
-        $util.qr($ctx.stash.put("userId", $ctx.args.userId))
-        {
-        }
-      PipelineConfig:
-        Functions:
-          - !GetAtt AllUserPortfoliosIdsAppSyncFunctionConfiguration.FunctionId
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.prev.result)
+  # # allUserPortfolios
+  # AllUserPortfoliosQueryAppSyncResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: AppSyncGraphQLSchema
+  #   Properties:
+  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+  #     TypeName: Query
+  #     FieldName: allUserPortfolios
+  #     Kind: PIPELINE
+  #     RequestMappingTemplate: |
+  #       $util.qr($ctx.stash.put("userId", $ctx.args.userId))
+  #       {
+  #       }
+  #     PipelineConfig:
+  #       Functions:
+  #         - !GetAtt AllUserPortfoliosIdsAppSyncFunctionConfiguration.FunctionId
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.prev.result)
 
   ### DataSource
+  NoneAppSyncDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: DataSource
+      Description: AppSync None data source
+      Type: NONE
+
   StocksPriceAppSyncDataSource:
     Type: AWS::AppSync::DataSource
     Properties:

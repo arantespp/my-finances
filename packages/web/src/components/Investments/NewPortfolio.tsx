@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { MutationFn } from 'react-apollo';
+import { MutationFn, MutationUpdaterFn } from 'react-apollo';
 
 import {
   NEW_PORTFOLIO_MUTATION,
@@ -10,21 +10,29 @@ import {
   NewPortfolioMutationResponse,
   NewPortfolioMutationVariables,
 } from '@graphql/mutations/new-portfolio';
+import {
+  USER_PORTFOLIOS_QUERY,
+  UserPortfoliosQueryResponse,
+  UserPortfoliosQueryVariables,
+} from '@graphql/queries/user-portfolios';
+import { Portfolio } from '@graphql/types/portfolio';
 
-import { userHandler } from '@utils';
+interface Props {
+  userId: string;
+}
 
 interface State {
   portfolioName: string;
 }
 
-class NewPortfolio extends React.Component<{}, State> {
+class NewPortfolio extends React.Component<Props, State> {
   state = {
     portfolioName: '',
   };
 
   render() {
     return (
-      <NewPortfolioMutation mutation={NEW_PORTFOLIO_MUTATION}>
+      <NewPortfolioMutation mutation={NEW_PORTFOLIO_MUTATION} update={this.update}>
         {(newPortfolio, { loading }) => {
           return (
             <div>
@@ -62,12 +70,27 @@ class NewPortfolio extends React.Component<{}, State> {
   ) => {
     e.preventDefault();
     try {
+      const { userId } = this.props;
       const { portfolioName } = this.state;
-      const userId = await userHandler.userId();
       await newPortfolio({ variables: { userId, portfolioName } });
     } catch (e) {
       throw e;
     }
+  };
+
+  private update: MutationUpdaterFn<NewPortfolioMutationResponse> = (proxy, { data }) => {
+    const { userId } = this.props;
+    const readQuery = proxy.readQuery<UserPortfoliosQueryResponse, UserPortfoliosQueryVariables>({
+      query: USER_PORTFOLIOS_QUERY,
+      variables: { userId },
+    });
+    const newPortfolios: Portfolio[] = [...readQuery!.user.portfolios, data!.newPortfolio];
+    const newData = { user: { ...readQuery!.user, portfolios: newPortfolios } };
+    proxy.writeQuery({
+      query: USER_PORTFOLIOS_QUERY,
+      variables: { userId },
+      data: newData,
+    });
   };
 }
 

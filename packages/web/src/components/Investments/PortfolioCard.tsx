@@ -2,9 +2,17 @@
 
 import * as React from 'react';
 
-class PortfolioCard extends React.Component {
+import { Portfolio } from '@graphql/types';
+
+interface Props extends Portfolio {}
+
+class PortfolioCard extends React.Component<Props> {
   render() {
-    return <span>oi</span>;
+    return (
+      <span>
+        {this.props.id}-{this.props.name}
+      </span>
+    );
   }
 }
 

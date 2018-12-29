@@ -1,3 +1,4 @@
 /** @format */
 
-export { Portfolio } from './portfolio';
+export * from './portfolio';
+export * from './user';

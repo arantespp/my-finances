@@ -10,6 +10,8 @@ export const NEW_PORTFOLIO_MUTATION = gql`
     newPortfolio(userId: $userId, portfolioName: $portfolioName) {
       id
       name
+      createdAt
+      participation
     }
   }
 `;
