@@ -4,12 +4,15 @@ import * as React from 'react';
 
 import { RouteComponentProps } from 'react-router-dom';
 
-import { Loading, LongShort, PortfolioDetails } from '@components';
+import Loading from '@components/Loading';
+import LongShort from '@components/LongShort';
+import PortfolioDetails from '@components/PortfolioDetails';
+import PortfolioStocks from '@components/PortfolioStocks';
 
 import { PORTFOLIO_QUERY, PortfolioQuery } from '@graphql/queries/portfolio';
 import { Portfolio as PortfolioType } from '@graphql/types';
 
-type ComponentNames = 'Detalhes' | 'Long & Short';
+type ComponentNames = 'Detalhes' | 'Ações' | 'Long & Short';
 
 interface Props
   extends RouteComponentProps<
@@ -26,13 +29,17 @@ interface State {
 
 class Portfolio extends React.Component<Props, State> {
   state = {
-    componentName: 'Detalhes' as ComponentNames,
+    componentName: 'Ações' as ComponentNames,
   };
 
   components: Array<{ name: ComponentNames; component: React.ComponentClass<{ portfolio: PortfolioType }> }> = [
     {
       name: 'Detalhes',
       component: PortfolioDetails,
+    },
+    {
+      name: 'Ações',
+      component: PortfolioStocks,
     },
     {
       name: 'Long & Short',

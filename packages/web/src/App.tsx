@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { withAuthenticator } from 'aws-amplify-react';
 
-import { Layout } from '@components';
+import Layout from '@components/Layout';
 
 import './App.scss';
 
