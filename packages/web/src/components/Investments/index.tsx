@@ -36,7 +36,6 @@ class Investments extends React.Component<{}, State> {
         <NewPortfolio userId={userId} />
         <UserPortfoliosQuery query={USER_PORTFOLIOS_QUERY} variables={{ userId }}>
           {({ data, loading }) => {
-            console.log(data);
             return loading ? (
               <Loading />
             ) : data!.user.portfolios.length !== 0 ? (

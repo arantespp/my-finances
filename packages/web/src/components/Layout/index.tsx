@@ -4,13 +4,9 @@ import * as React from 'react';
 
 import { Link, Route, Switch } from 'react-router-dom';
 
-import { Footer, Header } from '@components';
+import { Footer, Header, Investments, Portfolio } from '@components';
 
-interface Props {
-  components: Array<{ path: string; name: string; component: React.ComponentClass }>;
-}
-
-class Layout extends React.Component<Props> {
+class Layout extends React.Component {
   render() {
     return (
       <div className="container">
@@ -23,25 +19,18 @@ class Layout extends React.Component<Props> {
   }
 
   private Content = () => {
-    const { components } = this.props;
     return (
       <Switch>
-        {components.map(({ path, component }, index) => (
-          <Route key={index} path={path} exact={true} component={component} />
-        ))}
+        <Route path="/investments" exact={true} component={Investments} />
+        <Route path="/investments/portfolio" component={Portfolio} />
       </Switch>
     );
   };
 
   private Menu = () => {
-    const { components } = this.props;
     return (
       <div>
-        {components.map(({ name, path }, index) => (
-          <Link key={index} to={path}>
-            {name}
-          </Link>
-        ))}
+        <Link to="/investments">Investimentos</Link>
       </div>
     );
   };

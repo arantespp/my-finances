@@ -2,11 +2,17 @@
 
 import * as React from 'react';
 
-import AddLongShort from './AddLongShort';
+// import AddLongShort from './AddLongShort';
 
-class LongShort extends React.Component {
+import { Portfolio } from '@graphql/types';
+
+interface Props {
+  portfolio: Portfolio;
+}
+
+class LongShort extends React.Component<Props> {
   render() {
-    return <AddLongShort />;
+    return <span>LongShort</span>;
   }
 }
 

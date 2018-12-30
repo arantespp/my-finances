@@ -100,6 +100,7 @@ Resources:
         }
         type Query {
           user(id: ID!): User
+          portfolio(id: ID!): Portfolio
           # allRegisteredStocks: [StockMetadata]!
           # mostRecentStockPrice(ticker: String!): StockPrice!
           # allUserPortfolios(userId: ID!): [String]
@@ -299,6 +300,29 @@ Resources:
         }
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
+
+  # portfolio
+  PortfolioQueryAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: portfolio
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "GetItem",
+          "key" : {
+            "hashKey" : { "S" : "$ctx.args.id" },
+            "rangeKey": { "S" : "details" }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($portfolio = $ctx.result)
+        #set($portfolio.id = $portfolio.hashKey)
+        $util.toJson($portfolio)
 
   # AllowUserToViewPortfolioAppSyncFunctionConfiguration:
   #   Type: AWS::AppSync::FunctionConfiguration
