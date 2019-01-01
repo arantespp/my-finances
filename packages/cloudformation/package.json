@@ -5,9 +5,10 @@
 	"main": "index.js",
 	"scripts": {
 		"upload": "aws s3 cp . s3://my-finances-cloudformation --recursive --exclude 'package.json'",
+		"sync": "aws s3 sync . s3://my-finances-cloudformation --exclude 'package.json'",
 		"precreate-stack": "npm run upload",
 		"create-stack": "aws cloudformation create-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
-		"preupdate-stack": "npm run upload",
+		"preupdate-stack": "npm run sync",
 		"update-stack": "aws cloudformation update-stack --stack-name my-finances --capabilities CAPABILITY_NAMED_IAM --template-url https://s3.amazonaws.com/my-finances-cloudformation/template.yml",
 		"postupdate-stack": "aws cloudformation wait stack-update-complete --stack-name my-finances",
 		"describe-events": "aws cloudformation describe-stack-events --stack-name my-finances",
