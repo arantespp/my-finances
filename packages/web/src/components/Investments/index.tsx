@@ -38,8 +38,8 @@ class Investments extends React.Component<{}, State> {
           {({ data, loading }) => {
             return loading ? (
               <Loading />
-            ) : data!.user.portfolios.length !== 0 ? (
-              data!.user.portfolios.map(portfolio => <PortfolioCard key={portfolio.id} {...portfolio} />)
+            ) : data!.user.portfolios!.length !== 0 ? (
+              data!.user.portfolios!.map(portfolio => <PortfolioCard key={portfolio.id} {...portfolio} />)
             ) : (
               'Não possui portfolios'
             );

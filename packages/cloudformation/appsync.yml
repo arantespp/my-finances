@@ -118,7 +118,7 @@ Resources:
         type Mutation {
           newPortfolio(userId: ID!, portfolioName: String!): Portfolio!
           addPortfolioStock(portfolioId: ID!, data: PortfolioStockInput!): [PortfolioStock!]!
-          removePortfolioStock(index: Int!): [PortfolioStock!]!
+          removePortfolioStock(portfolioId: ID!, index: Int!): [PortfolioStock!]!
           # registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
           # unregisterStock(ticker: String!): String!
           # deletePortfolio(portfolioId: ID!): String!
@@ -226,6 +226,33 @@ Resources:
         #set($ctx.stash.newPortfolioStocks = $ctx.result.stocks)
         $util.toJson($ctx.result.stocks)
 
+  RemovePortfolioStockAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: RemovePortfolioStockAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($portfolioId = $ctx.stash.portfolioId)
+        #set($index = $ctx.stash.index)
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "hashKey" : { "S" : "$portfolioId" },
+            "rangeKey": { "S" : "stocks" }
+          },
+          "update": {
+            "expression": "REMOVE stocks[$index]",            
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($ctx.stash.hashKey = $ctx.result.hashKey)
+        #set($ctx.stash.newPortfolioStocks = $ctx.result.stocks)
+        $util.toJson($ctx.result.stocks)
+
   MapPortfolioStockAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
@@ -243,7 +270,7 @@ Resources:
         #foreach( $stock in $ctx.stash.newPortfolioStocks )
           #set($stockSubstrings = $stock.split(" "))
           #set($stockObj = {
-            "id": "$hashKey - $stockSubstrings[0]",
+            "id": $foreach.count,
             "ticker": $stockSubstrings[0],
             "date": $stockSubstrings[1],
             "type": $stockSubstrings[2],
@@ -397,24 +424,26 @@ Resources:
         $util.toJson($ctx.stash.newPortfolioStocks)
 
   # removePortfolioStock
-  # RemovePortfolioStockMutationAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   # DependsOn: RemovePortfolioStockMutationAppSyncResolver
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Mutation
-  #     FieldName: removePortfolioStock
-  #     Kind: PIPELINE
-  #     RequestMappingTemplate: |
-  #       $util.qr($ctx.stash.put("portfolioId", $ctx.args.portfolioId))
-  #       $util.qr($ctx.stash.put("data", $ctx.args.data))
-  #       {}
-  #     PipelineConfig:
-  #       Functions:
-  #         - !GetAtt AddPortfolioStockAppSyncFunctionConfiguration.FunctionId
-  #         - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.stash.newPortfolioStocks)
+  RemovePortfolioStockMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+      - RemovePortfolioStockAppSyncFunctionConfiguration
+      - MapPortfolioStockAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: removePortfolioStock
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        $util.qr($ctx.stash.put("portfolioId", $ctx.args.portfolioId))
+        $util.qr($ctx.stash.put("index", $ctx.args.index))
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt RemovePortfolioStockAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.stash.newPortfolioStocks)
 
   ## Query
   # user

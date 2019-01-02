@@ -84,7 +84,7 @@ class NewPortfolio extends React.Component<Props, State> {
       query: USER_PORTFOLIOS_QUERY,
       variables: { userId },
     });
-    const newPortfolios: Portfolio[] = [...readQuery!.user.portfolios, data!.newPortfolio];
+    const newPortfolios: Portfolio[] = [...readQuery!.user.portfolios!, data!.newPortfolio];
     const newData = { user: { ...readQuery!.user, portfolios: newPortfolios } };
     proxy.writeQuery({
       query: USER_PORTFOLIOS_QUERY,

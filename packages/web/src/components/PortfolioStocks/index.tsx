@@ -14,9 +14,12 @@ interface Props {
 
 class PortfolioStocks extends React.Component<Props> {
   render() {
+    const {
+      portfolio: { id },
+    } = this.props;
     return (
       <div className="PortfolioStocks">
-        <AddStock />
+        <AddStock portfolioId={id} />
       </div>
     );
   }
