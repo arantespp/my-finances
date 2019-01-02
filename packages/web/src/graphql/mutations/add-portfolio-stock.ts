@@ -9,11 +9,12 @@ import { PortfolioStock } from '../types';
 export const ADD_PORTFOLIO_STOCK_MUTATION = gql`
   mutation addPortfolioStock($portfolioId: ID!, $data: PortfolioStockInput!) {
     addPortfolioStock(portfolioId: $portfolioId, data: $data) {
-      id
+      index
       ticker
       quantity
       value
       type
+      date
     }
   }
 `;

@@ -68,7 +68,7 @@ Resources:
           owner
         }
         type PortfolioStock {
-          id: ID!
+          index: ID!
           ticker: String!
           date: String!
           type: PortfolioStockType!
@@ -83,7 +83,7 @@ Resources:
           ## Yield
           Y
         }
-        input PortfolioStockInput {          
+        input PortfolioStockInput {
           ticker: String!
           date: String!
           type: PortfolioStockType!
@@ -140,6 +140,154 @@ Resources:
         }
 
   ## Functions
+  # A
+  AddPortfolioStockAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AddPortfolioStockAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($portfolioId = $ctx.stash.portfolioId)
+        #set($data = $ctx.stash.data)
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "hashKey" : { "S" : "$portfolioId" },
+            "rangeKey": { "S" : "stocks" }
+          },
+          "update": {
+            "expression": "SET stocks = list_append(if_not_exists(stocks, :emptyList), :stockData)",
+            #set($stockData = "$data.ticker")
+            #set($stockData = "$stockData $data.date")
+            #set($stockData = "$stockData $data.type")
+            #set($stockData = "$stockData $data.value")
+            #set($stockData = "$stockData $data.quantity")
+            "expressionValues": {
+              ":stockData": $util.dynamodb.toDynamoDBJson([ $stockData ]),
+              ":emptyList": { "L": [] }
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($ctx.stash.hashKey = $ctx.result.hashKey)
+        #set($ctx.stash.portfolioStocks = $ctx.result.stocks)
+        $util.toJson($ctx.result.stocks)
+
+  AllUserPortfoliosAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllUserPortfoliosAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: !Sub
+        - |
+          {
+            "version": "2018-05-29",
+            "operation": "BatchGetItem",
+            #set($keys = [])
+            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
+              #set($portfolioId = $portfolioMetadata.hashKey)
+              $util.qr($keys.add({
+                "hashKey": { "S" : "$portfolioId" },
+                "rangeKey": { "S" : "details" }
+              }))
+            #end
+            #if( $keys.isEmpty() )
+              $util.qr($keys.add({
+                "hashKey": { "S" : "fakeId" },
+                "rangeKey": { "S" : "details" }
+              }))
+            #end
+            "tables" : {
+              "${TableName}": {
+                "keys": $util.toJson($keys)
+              }
+            }
+          }
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+      ResponseMappingTemplate: !Sub
+        - |
+          #set($portfolios = $ctx.result.data["${TableName}"])
+          #foreach($portfolio in $portfolios)
+            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
+              #if($portfolio.hashKey == $portfolioMetadata.hashKey)
+                #set($portfolio.id = $portfolio.hashKey)
+                #set($portfolio.participation = $portfolioMetadata.participation)
+              #end
+            #end
+          #end
+          #if( !$portfolios[0] )
+            $util.toJson([])
+          #else
+            $util.toJson($portfolios)
+          #end
+        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+
+  AllUserPortfoliosMetadataAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: AllUserPortfoliosMetadataAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($userId = $ctx.stash.userId)
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "index": "range-key-index",
+          "query" : {
+            "expression" : "rangeKey = :rangeKey",
+            "expressionValues" : {
+              ":rangeKey" : { "S" : "user_$userId" }
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set($ctx.stash.userPortfoliosMetadata = $ctx.result.items)
+        $util.toJson($ctx.result.items)
+
+  # B
+  # C
+  # D
+
+  # M
+  MapPortfolioStockAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: MapPortfolioStockAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+        }
+      ResponseMappingTemplate: |
+        #set($stocks = [])
+        #foreach( $stock in $ctx.stash.portfolioStocks )
+          #set($stockSubstrings = $stock.split(" "))
+          #set($stockObj = {
+            "index": $foreach.index,
+            "ticker": $stockSubstrings[0],
+            "date": $stockSubstrings[1],
+            "type": $stockSubstrings[2],
+            "value": $stockSubstrings[3],
+            "quantity": $stockSubstrings[4]
+          })
+          $util.qr($stocks.add($stockObj))
+        #end
+        #set($ctx.stash.portfolioStocks = $stocks)
+        $util.toJson($stocks)
+
+  # N
   NewPortfolioAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
@@ -190,42 +338,33 @@ Resources:
           $util.toJson($newPortfolio)
         - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
 
-  AddPortfolioStockAppSyncFunctionConfiguration:
+  # O
+  # P
+  PortfolioStocksAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AddPortfolioStockAppSyncFunctionConfiguration
+      Name: PortfolioStocksAppSyncFunctionConfiguration
       FunctionVersion: 2018-05-29
       DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
       RequestMappingTemplate: |
         #set($portfolioId = $ctx.stash.portfolioId)
-        #set($data = $ctx.stash.data)
         {
           "version" : "2017-02-28",
-          "operation" : "UpdateItem",
+          "operation" : "GetItem",
           "key" : {
             "hashKey" : { "S" : "$portfolioId" },
             "rangeKey": { "S" : "stocks" }
-          },
-          "update": {
-            "expression": "SET stocks = list_append(if_not_exists(stocks, :emptyList), :stockData)",
-            #set($stockData = "$data.ticker")
-            #set($stockData = "$stockData $data.date")
-            #set($stockData = "$stockData $data.type")
-            #set($stockData = "$stockData $data.value")
-            #set($stockData = "$stockData $data.quantity")
-            "expressionValues": {
-              ":stockData": $util.dynamodb.toDynamoDBJson([ $stockData ]),
-              ":emptyList": { "L": [] }
-            }
           }
         }
       ResponseMappingTemplate: |
-        #set($ctx.stash.hashKey = $ctx.result.hashKey)
-        #set($ctx.stash.newPortfolioStocks = $ctx.result.stocks)
+        #set($ctx.stash.portfolioStocks = $ctx.result.stocks)
         $util.toJson($ctx.result.stocks)
 
+  # Q
+
+  # R
   RemovePortfolioStockAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
@@ -245,137 +384,64 @@ Resources:
             "rangeKey": { "S" : "stocks" }
           },
           "update": {
-            "expression": "REMOVE stocks[$index]",            
+            "expression": "REMOVE stocks[$index]",
           }
         }
       ResponseMappingTemplate: |
         #set($ctx.stash.hashKey = $ctx.result.hashKey)
-        #set($ctx.stash.newPortfolioStocks = $ctx.result.stocks)
+        #set($ctx.stash.portfolioStocks = $ctx.result.stocks)
         $util.toJson($ctx.result.stocks)
 
-  MapPortfolioStockAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: MapPortfolioStockAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        {          
-        }
-      ResponseMappingTemplate: |
-        #set($hashKey = $ctx.stash.hashKey)
-        #set($stocks = [])
-        #foreach( $stock in $ctx.stash.newPortfolioStocks )
-          #set($stockSubstrings = $stock.split(" "))
-          #set($stockObj = {
-            "id": $foreach.count,
-            "ticker": $stockSubstrings[0],
-            "date": $stockSubstrings[1],
-            "type": $stockSubstrings[2],
-            "value": $stockSubstrings[3],
-            "quantity": $stockSubstrings[4]
-          })
-          $util.qr($stocks.add($stockObj))
-        #end        
-        #set($ctx.stash.newPortfolioStocks = $stocks)
-        $util.toJson($stocks)
-
-  AllUserPortfoliosMetadataAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AllUserPortfoliosMetadataAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        #set($userId = $ctx.stash.userId)
-        {
-          "version" : "2017-02-28",
-          "operation" : "Query",
-          "index": "range-key-index",
-          "query" : {
-            "expression" : "rangeKey = :rangeKey",
-            "expressionValues" : {              
-              ":rangeKey" : { "S" : "user_$userId" }
-            }
-          }
-        }
-      ResponseMappingTemplate: |
-        #set($ctx.stash.userPortfoliosMetadata = $ctx.result.items)
-        $util.toJson($ctx.result.items)
-
-  AllUserPortfoliosAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: AllUserPortfoliosAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
-      RequestMappingTemplate: !Sub
-        - |
-          {
-            "version": "2018-05-29",
-            "operation": "BatchGetItem",
-            #set($keys = [])
-            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
-              #set($portfolioId = $portfolioMetadata.hashKey)
-              $util.qr($keys.add({
-                "hashKey": { "S" : "$portfolioId" },
-                "rangeKey": { "S" : "details" }
-              }))
-            #end
-            #if( $keys.isEmpty() )
-              $util.qr($keys.add({
-                "hashKey": { "S" : "fakeId" },
-                "rangeKey": { "S" : "details" }
-              }))
-            #end
-            "tables" : {
-              "${TableName}": {
-                "keys": $util.toJson($keys)
-              }
-            }
-          }
-        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
-      ResponseMappingTemplate: !Sub
-        - |
-          #set($portfolios = $ctx.result.data["${TableName}"])
-          #foreach($portfolio in $portfolios)
-            #foreach($portfolioMetadata in $ctx.stash.userPortfoliosMetadata)
-              #if($portfolio.hashKey == $portfolioMetadata.hashKey)
-                #set($portfolio.id = $portfolio.hashKey)
-                #set($portfolio.participation = $portfolioMetadata.participation)                
-              #end
-            #end
-          #end
-          #if( !$portfolios[0] )
-            $util.toJson([])
-          #else
-            $util.toJson($portfolios)
-          #end
-        - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
+  # S
+  # T
+  # U
+  # V
+  # W
+  # X
+  # Y
+  # Z
 
   ## User
   # portfolios
   PortfoliosUserAppSyncResolver:
     Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
+    DependsOn:
+      - AllUserPortfoliosMetadataAppSyncFunctionConfiguration
+      - AllUserPortfoliosAppSyncFunctionConfiguration
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: User
       FieldName: portfolios
       Kind: PIPELINE
       RequestMappingTemplate: |
-        $util.qr($ctx.stash.put("userId", $ctx.source.id))        
+        $util.qr($ctx.stash.put("userId", $ctx.source.id))
         {}
       PipelineConfig:
         Functions:
           - !GetAtt AllUserPortfoliosMetadataAppSyncFunctionConfiguration.FunctionId
           - !GetAtt AllUserPortfoliosAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  ## Portfolio
+  # stocks
+  StocksPortfolioAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+      - PortfolioStocksAppSyncFunctionConfiguration
+      - MapPortfolioStockAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Portfolio
+      FieldName: stocks
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        #set($ctx.stash.portfolioId = $ctx.source.id)
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt PortfolioStocksAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
 
@@ -421,7 +487,7 @@ Resources:
           - !GetAtt AddPortfolioStockAppSyncFunctionConfiguration.FunctionId
           - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
-        $util.toJson($ctx.stash.newPortfolioStocks)
+        $util.toJson($ctx.stash.portfolioStocks)
 
   # removePortfolioStock
   RemovePortfolioStockMutationAppSyncResolver:
@@ -443,7 +509,7 @@ Resources:
           - !GetAtt RemovePortfolioStockAppSyncFunctionConfiguration.FunctionId
           - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
-        $util.toJson($ctx.stash.newPortfolioStocks)
+        $util.toJson($ctx.stash.portfolioStocks)
 
   ## Query
   # user

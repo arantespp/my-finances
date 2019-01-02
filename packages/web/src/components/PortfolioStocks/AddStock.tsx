@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { utc } from 'moment';
-import { MutationFn } from 'react-apollo';
+import { MutationFn, MutationUpdaterFn } from 'react-apollo';
 import DatePicker from 'react-datepicker';
 
 import InputNumber from '@components/InputNumber';
@@ -15,6 +15,7 @@ import {
   AddPortfolioStockMutationResponse,
   AddPortfolioStockMutationVariables,
 } from '@graphql/mutations/add-portfolio-stock';
+import { PORTFOLIO_STOCKS_QUERY, PortfolioQueryResponse, PortfolioQueryVariables } from '@graphql/queries/portfolio';
 
 interface Props {
   portfolioId: string;
@@ -39,7 +40,7 @@ class AddStock extends React.Component<Props, State> {
 
   render() {
     return (
-      <AddPortfolioStockMutation mutation={ADD_PORTFOLIO_STOCK_MUTATION}>
+      <AddPortfolioStockMutation mutation={ADD_PORTFOLIO_STOCK_MUTATION} update={this.update}>
         {(addPortfolioStock, { loading }) => {
           return (
             <div className="AddStock">
@@ -114,6 +115,20 @@ class AddStock extends React.Component<Props, State> {
       </AddPortfolioStockMutation>
     );
   }
+
+  private update: MutationUpdaterFn<AddPortfolioStockMutationResponse> = (proxy, { data }) => {
+    const { portfolioId } = this.props;
+    const readQuery = proxy.readQuery<PortfolioQueryResponse, PortfolioQueryVariables>({
+      query: PORTFOLIO_STOCKS_QUERY,
+      variables: { portfolioId },
+    });
+    const newData: PortfolioQueryResponse = { portfolio: { ...readQuery!.portfolio, stocks: data!.addPortfolioStock } };
+    proxy.writeQuery({
+      query: PORTFOLIO_STOCKS_QUERY,
+      variables: { portfolioId },
+      data: newData,
+    });
+  };
 
   private onSubmit = (
     addPortfolioStock: MutationFn<AddPortfolioStockMutationResponse, AddPortfolioStockMutationVariables>,

@@ -1,11 +1,16 @@
 /** @format */
 
 .PortfolioStocks {
+  display: flex;
+  flex-direction: column;
   .AddStock {
     .button-align {
       display: flex;
       justify-content: center;
       align-items: flex-end;
     }
+  }
+  .StockCard {
+    margin: 20px;
   }
 }
