@@ -15,7 +15,9 @@ import {
   AddPortfolioStockMutationResponse,
   AddPortfolioStockMutationVariables,
 } from '@graphql/mutations/add-portfolio-stock';
+import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQuery } from '@graphql/queries/all-registered-stocks';
 import { PORTFOLIO_STOCKS_QUERY, PortfolioQueryResponse, PortfolioQueryVariables } from '@graphql/queries/portfolio';
+import { StockMetadata } from '@graphql/types';
 
 interface Props {
   portfolioId: string;
@@ -58,21 +60,29 @@ class AddStock extends React.Component<Props, State> {
                         />
                       </div>
                     </div>
-                    <div className="field">
-                      <label className="label">Ativo</label>
-                      <p className="control is-expanded has-icons-left">
-                        <input
-                          className="input"
-                          type="text"
-                          placeholder="Ativo"
-                          onChange={this.tickerOnChange}
-                          value={this.state.ticker}
-                        />
-                        <span className="icon is-small is-left">
-                          <i className="fas fa-user" />
-                        </span>
-                      </p>
-                    </div>
+                    <AllRegisteredStocksQuery query={ALL_REGISTERED_STOCKS_QUERY}>
+                      {({ data }) => {
+                        const options = data!.allRegisteredStocks || [];
+                        return (
+                          <div className="field">
+                            <label className="label">Ativo</label>
+                            <div className="control is-expanded has-icons-left">
+                              <div className="select">
+                                <select onChange={this.tickerOnChange}>
+                                  {options.sort(this.sortStocks).map(({ ticker }, index) => {
+                                    return <option key={index}>{ticker}</option>;
+                                  })}
+                                </select>
+                              </div>
+                              <span className="icon is-small is-left">
+                                <i className="fas fa-user" />
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    </AllRegisteredStocksQuery>
+
                     <div className="field">
                       <label className="label">Valor</label>
                       <p className="control is-expanded has-icons-left">
@@ -116,6 +126,10 @@ class AddStock extends React.Component<Props, State> {
     );
   }
 
+  private sortStocks = (stockA: StockMetadata, stockB: StockMetadata): number => {
+    return stockA.ticker < stockB.ticker ? -1 : 1;
+  };
+
   private update: MutationUpdaterFn<AddPortfolioStockMutationResponse> = (proxy, { data }) => {
     const { portfolioId } = this.props;
     const readQuery = proxy.readQuery<PortfolioQueryResponse, PortfolioQueryVariables>({
@@ -158,7 +172,7 @@ class AddStock extends React.Component<Props, State> {
     this.setState({ date: utc(date).format(dateFormat) });
   };
 
-  private tickerOnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  private tickerOnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     this.setState({ ticker: event.target.value.toUpperCase() });
   };
 

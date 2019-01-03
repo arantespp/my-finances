@@ -68,12 +68,14 @@ Resources:
           owner
         }
         type PortfolioStock {
+          id: ID!
           index: ID!
           ticker: String!
           date: String!
           type: PortfolioStockType!
           value: Float!
           quantity: Int!
+          mostRecentPrice: Float
         }
         enum PortfolioStockType {
           ## Buy 
@@ -99,7 +101,7 @@ Resources:
           ticker: String!
         }
         type StockPrice {
-          ticker: String!
+          ticker: ID!
           date: AWSDateTime!
           price: Float!
         }
@@ -127,7 +129,7 @@ Resources:
           user(id: ID!): User
           portfolio(id: ID!): Portfolio
           allRegisteredStocks: [StockMetadata]!
-          # mostRecentStockPrice(ticker: String!): StockPrice!         
+          mostRecentStockPrice(ticker: ID!): StockPrice!
         }
         ## type Subscription {
         ## }
@@ -273,6 +275,7 @@ Resources:
         #foreach( $stock in $ctx.stash.portfolioStocks )
           #set($stockSubstrings = $stock.split(" "))
           #set($stockObj = {
+            "id": $foreach.index,
             "index": $foreach.index,
             "ticker": $stockSubstrings[0],
             "date": $stockSubstrings[1],
@@ -284,6 +287,37 @@ Resources:
         #end
         #set($ctx.stash.portfolioStocks = $stocks)
         $util.toJson($stocks)
+
+  MostRecentStockPriceAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: MostRecentStockPriceAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression" : "hashKey = :hashKey",
+            "expressionValues" : {
+              ":hashKey" : { "S" : "$ctx.stash.ticker" }
+            }
+          },
+          "limit": 1,
+          "scanIndexForward": false
+        }
+      ResponseMappingTemplate: |
+        #set( $item = $ctx.result.items[0] )
+        #set( $res = {
+          "ticker": $item.hashKey,
+          "date": $item.rangeKey,
+          "price": $item.price
+        })
+        #set( $ctx.stash.mostRecentStockPrice = $res )
+        $util.toJson($res)
 
   # N
   NewPortfolioAppSyncFunctionConfiguration:
@@ -443,6 +477,26 @@ Resources:
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
 
+  ## PortfolioStock
+  # lastPrice
+  LastPricePortfolioStockAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+      - MostRecentStockPriceAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: PortfolioStock
+      FieldName: lastPrice
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        #set($ctx.stash.ticker = $ctx.source.ticker)
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt MostRecentStockPriceAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result.price)
+
   ## Mutation
   # newPortfolio
   NewPortfolioMutationAppSyncResolver:
@@ -591,20 +645,21 @@ Resources:
         #end
         $util.toJson($tickers)
 
-  # user
-  UserQueryAppSyncResolver:
+  # mostRecentStockPrice
+  MostRecentStockPriceQueryAppSyncResolver:
     Type: AWS::AppSync::Resolver
-    DependsOn: AppSyncGraphQLSchema
+    DependsOn: MostRecentStockPriceAppSyncFunctionConfiguration
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Query
-      FieldName: user
-      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
+      FieldName: mostRecentStockPrice
+      Kind: PIPELINE
       RequestMappingTemplate: |
-        {
-          "version": "2017-02-28",
-          "payload": $utils.toJson($ctx.args)
-        }
+        #set($ctx.stash.ticker = $ctx.args.ticker)
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt MostRecentStockPriceAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
 
@@ -630,6 +685,23 @@ Resources:
         #set($portfolio = $ctx.result)
         #set($portfolio.id = $portfolio.hashKey)
         $util.toJson($portfolio)
+
+  # user
+  UserQueryAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: user
+      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "payload": $utils.toJson($ctx.args)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
 
   # AllowUserToViewPortfolioAppSyncFunctionConfiguration:
   #   Type: AWS::AppSync::FunctionConfiguration
@@ -728,36 +800,6 @@ Resources:
   #         #end
   #       #end
   #       $util.toJson($tickers)
-
-  # # mostRecentStockPrice
-  # MostRecentStockPriceQueryAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Query
-  #     FieldName: mostRecentStockPrice
-  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-  #     RequestMappingTemplate: |
-  #       {
-  #         "version" : "2017-02-28",
-  #         "operation" : "Query",
-  #         "query" : {
-  #           "expression" : "hashKey = :hashKey",
-  #           "expressionValues" : {
-  #             ":hashKey" : { "S" : "$ctx.args.ticker" }
-  #           }
-  #         },
-  #         "limit": 1,
-  #         "scanIndexForward": false
-  #       }
-  #     ResponseMappingTemplate: |
-  #       #set( $item = $ctx.result.items[0] )
-  #       $util.toJson({
-  #         "ticker": $item.hashKey,
-  #         "date": $item.rangeKey,
-  #         "price": $item.price
-  #       })
 
   ### DataSource
   NoneAppSyncDataSource:

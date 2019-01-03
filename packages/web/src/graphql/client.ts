@@ -40,8 +40,9 @@ const client = new AWSAppSyncClient(
     cacheOptions: {
       dataIdFromObject: (value: any): string | null => {
         switch (value.__typename) {
-          case 'Device':
-            return value.deviceId;
+          case 'StockMetadata':
+          case 'StockPrice':
+            return value.__typename + ':' + value.ticker;
           default:
             return defaultDataIdFromObject(value);
         }

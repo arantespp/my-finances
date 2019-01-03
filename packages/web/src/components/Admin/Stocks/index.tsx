@@ -21,8 +21,8 @@ class Stocks extends React.Component {
               {loading ? (
                 <Loading />
               ) : (
-                data!.allRegisteredStocks
-                  .sort(this.sortStocks)
+                data!
+                  .allRegisteredStocks!.sort(this.sortStocks)
                   .map(stock => <RegisteredStock key={stock.ticker} {...stock} />)
               )}
             </div>

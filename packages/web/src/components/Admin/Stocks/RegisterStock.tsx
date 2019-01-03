@@ -115,8 +115,6 @@ class RegisterStock extends React.Component<{}, State> {
     );
   }
 
-  // https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${AlphaVantageApiKey}
-
   private disableCheckButton = (): boolean => {
     const { ticker } = this.state;
     return !!!ticker;
