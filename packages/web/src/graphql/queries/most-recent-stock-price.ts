@@ -10,6 +10,7 @@ export const MOST_RECENT_STOCK_PRICE_QUERY = gql`
     mostRecentStockPrice(ticker: $ticker) {
       ticker
       price
+      date
     }
   }
 `;

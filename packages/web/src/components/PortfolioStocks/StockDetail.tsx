@@ -44,7 +44,7 @@ class StockDetail extends React.Component<Props> {
                   <span>{date}</span>
                 </div>
                 <div className="column">
-                  <span>{value}</span>
+                  <span>R$ {(value as number).toFixed(2)}</span>
                 </div>
                 <div className="column">
                   <span>{quantity}</span>
