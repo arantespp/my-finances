@@ -32,7 +32,7 @@ const dateFormat = 'YYYY-MM-DD';
 
 class AddStock extends React.Component<Props, State> {
   state = {
-    date: utc(Date.now()).format(dateFormat),
+    date: utc().format(dateFormat),
     ticker: '',
     value: '',
     quantity: '',
@@ -52,7 +52,7 @@ class AddStock extends React.Component<Props, State> {
                       <div className="control is-expanded">
                         <DatePicker
                           className="input"
-                          selected={new Date(this.state.date)}
+                          selected={new Date()}
                           onChange={this.dateOnChange}
                           dateFormat="dd/MM/yyyy"
                         />

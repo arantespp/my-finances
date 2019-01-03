@@ -12,18 +12,44 @@ import {
 } from '@graphql/mutations/register-stock';
 import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQueryResponse } from '@graphql/queries/all-registered-stocks';
 
+import config from '@config';
+
+interface AlphaVantageGlobalQuoteResponse {
+  'Global Quote':
+    | {
+        '01. symbol': string;
+        '02. open': string;
+        '03. high': string;
+        '04. low': string;
+        '05. price': string;
+        '06. volume': string;
+        '07. latest trading day': string;
+        '08. previous close': string;
+        '09. change': string;
+        '10. change percent': string;
+      }
+    | {};
+}
+
 interface State {
   AlphaVantageSymbol: string;
+  globalQuote: AlphaVantageGlobalQuoteResponse | null;
+  hasSymbol: boolean;
+  loadingCheck: boolean;
   ticker: string;
 }
 
 class RegisterStock extends React.Component<{}, State> {
   state = {
     AlphaVantageSymbol: '',
+    globalQuote: { 'Global Quote': {} },
+    hasSymbol: false,
+    loadingCheck: false,
     ticker: '',
   };
 
   render() {
+    const { loadingCheck } = this.state;
     return (
       <RegisterStockMutation mutation={REGISTER_STOCK_MUTATION} update={this.update}>
         {registerStock => {
@@ -64,7 +90,18 @@ class RegisterStock extends React.Component<{}, State> {
                   </div>
                   <div className="field">
                     <div className="control">
-                      <button className="button is-primary" type="submit">
+                      <button
+                        className={`button is-info ${loadingCheck && 'is-loading'}`}
+                        disabled={this.disableCheckButton()}
+                        type="button"
+                        onClick={this.checkStock}>
+                        Test Stock
+                      </button>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <div className="control">
+                      <button className="button is-primary" disabled={this.disableSubmitButton()} type="submit">
                         Add Stock
                       </button>
                     </div>
@@ -78,6 +115,30 @@ class RegisterStock extends React.Component<{}, State> {
     );
   }
 
+  // https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${AlphaVantageApiKey}
+
+  private disableCheckButton = (): boolean => {
+    const { ticker } = this.state;
+    return !!!ticker;
+  };
+
+  private disableSubmitButton = (): boolean => {
+    const { hasSymbol } = this.state;
+    return !hasSymbol;
+  };
+
+  private checkStock = async (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    event.preventDefault();
+    this.setState({ loadingCheck: true });
+    const { AlphaVantageApiKey } = config;
+    const { AlphaVantageSymbol } = this.state;
+    const res = await fetch(
+      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${AlphaVantageSymbol}&apikey=${AlphaVantageApiKey}`,
+    );
+    const globalQuote: AlphaVantageGlobalQuoteResponse = await res.json();
+    this.setState({ loadingCheck: false, hasSymbol: Object.keys(globalQuote['Global Quote']).length !== 0 });
+  };
+
   private submitForm = (
     registerStock: MutationFn<RegisterStockMutationResponse, RegisterStockMutationVariables>,
   ) => async (event: any) => {
@@ -86,7 +147,6 @@ class RegisterStock extends React.Component<{}, State> {
       const { ticker, AlphaVantageSymbol } = this.state;
       await registerStock({ variables: { stockMetadata: { ticker, AlphaVantageSymbol } } });
       this.setState({ ticker: '', AlphaVantageSymbol: '' });
-      console.log(this.state);
     } catch (e) {
       throw e;
     }

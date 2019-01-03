@@ -8,7 +8,7 @@ import { ApolloProvider } from 'react-apollo';
 import * as ReactDOM from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
 
-import { ErrorBoundary } from '@components';
+import ErrorBoundary from '@components/ErrorBoundary';
 import client from '@graphql/client';
 import App from './App';
 

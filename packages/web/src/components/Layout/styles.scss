@@ -1,0 +1,36 @@
+/** @format */
+
+$header-height: 80px;
+
+.Layout {
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: scroll;
+
+  .columns {
+    width: 100%;
+  }
+
+  .Menu {
+    // height: 100vh;
+
+    .header {
+      height: $header-height;
+      background-color: gold;
+    }
+
+    .menu {
+      height: auto;
+      // overflow: scroll;
+    }
+  }
+
+  .Header {
+    height: $header-height;
+    background-color: brown;
+  }
+
+  .Footer {
+    background-color: aqua;
+  }
+}

@@ -10,8 +10,12 @@ import './App.scss';
 
 class App extends React.Component {
   render() {
-    return <Layout />;
+    return (
+      <div className="App container">
+        <Layout />
+      </div>
+    );
   }
 }
 
-export default withAuthenticator(App, true);
+export default withAuthenticator(App, false);

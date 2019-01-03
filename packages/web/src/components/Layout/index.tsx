@@ -2,38 +2,48 @@
 
 import * as React from 'react';
 
-import { Link, Route, Switch } from 'react-router-dom';
+import { Route, Switch } from 'react-router-dom';
 
-import { Footer, Header, Investments, Portfolio } from '@components';
+import Stocks from '@components/Admin/Stocks';
+import Investments from '@components/Investments';
+import Portfolio from '@components/Portfolio';
 
-class Layout extends React.Component {
+import Footer from './Footer';
+import Header from './Header';
+import Menu from './Menu';
+
+interface State {
+  hiddenMenu: boolean;
+}
+
+class Layout extends React.Component<{}, State> {
+  state = {
+    hiddenMenu: false,
+  };
   render() {
     return (
-      <div className="container">
-        <Header />
-        {this.Menu()}
-        {this.Content()}
-        <Footer />
+      <div className="Layout">
+        <div className="columns container">
+          <div className="column is-one-fifth is-hidden-mobile">
+            <Menu />
+          </div>
+          <div className="column">
+            <div>
+              <Header />
+              <div className="content">
+                <Switch>
+                  <Route path="/investments" exact={true} component={Investments} />
+                  <Route path="/investments/portfolio" component={Portfolio} />
+                  <Route path="/admin/stocks" component={Stocks} />
+                </Switch>
+              </div>
+              <Footer />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
-
-  private Content = () => {
-    return (
-      <Switch>
-        <Route path="/investments" exact={true} component={Investments} />
-        <Route path="/investments/portfolio" component={Portfolio} />
-      </Switch>
-    );
-  };
-
-  private Menu = () => {
-    return (
-      <div>
-        <Link to="/investments">Investimentos</Link>
-      </div>
-    );
-  };
 }
 
 export default Layout;

@@ -3,6 +3,8 @@
 import gql from 'graphql-tag';
 import { Query } from 'react-apollo';
 
+import { StockMetadata } from '../types';
+
 export const ALL_REGISTERED_STOCKS_QUERY = gql`
   query {
     allRegisteredStocks {
@@ -13,10 +15,7 @@ export const ALL_REGISTERED_STOCKS_QUERY = gql`
 `;
 
 export interface AllRegisteredStocksQueryResponse {
-  allRegisteredStocks: Array<{
-    AlphaVantageSymbol: string;
-    ticker: string;
-  }>;
+  allRegisteredStocks: StockMetadata[];
 }
 
 export interface AllRegisteredStocksQueryVariables {}

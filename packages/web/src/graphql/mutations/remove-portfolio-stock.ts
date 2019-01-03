@@ -19,7 +19,7 @@ export const REMOVE_PORTFOLIO_STOCK_MUTATION = gql`
 `;
 
 export interface RemovePortfolioStockMutationResponse {
-  removePortfolioStock: [PortfolioStock];
+  removePortfolioStock: PortfolioStock[];
 }
 
 export interface RemovePortfolioStockMutationVariables {

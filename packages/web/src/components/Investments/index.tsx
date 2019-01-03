@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Loading } from '@components';
+import Loading from '@components/Loading';
 
 import NewPortfolio from './NewPortfolio';
 import PortfolioCard from './PortfolioCard';

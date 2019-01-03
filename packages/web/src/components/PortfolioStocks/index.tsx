@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Loading } from '@components';
+import Loading from '@components/Loading';
 
 import { PORTFOLIO_STOCKS_QUERY, PortfolioQuery } from '@graphql/queries/portfolio';
 import { Portfolio, PortfolioStock } from '@graphql/types';

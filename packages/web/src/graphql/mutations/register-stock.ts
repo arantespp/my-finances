@@ -3,6 +3,8 @@
 import gql from 'graphql-tag';
 import { Mutation } from 'react-apollo';
 
+import { StockMetadata } from '../types';
+
 export const REGISTER_STOCK_MUTATION = gql`
   mutation registerStock($stockMetadata: StockMetadataInput!) {
     registerStock(stockMetadata: $stockMetadata) {
@@ -13,10 +15,7 @@ export const REGISTER_STOCK_MUTATION = gql`
 `;
 
 export interface RegisterStockMutationResponse {
-  registerStock: {
-    AlphaVantageSymbol: string;
-    ticker: string;
-  };
+  registerStock: StockMetadata;
 }
 
 export interface RegisterStockMutationVariables {

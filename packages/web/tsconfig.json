@@ -19,7 +19,6 @@
     "noUnusedLocals": true,
     "paths": {
       "@assets/*": ["src/assets/*"],
-      "@components": ["src/components"],
       "@components/*": ["src/components/*"],
       "@config": ["src/config"],
       "@graphql/*": ["src/graphql/*"],

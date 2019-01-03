@@ -90,24 +90,24 @@ Resources:
           value: Float!
           quantity: Int!
         }
-        # type StockMetadata {
-        #   AlphaVantageSymbol: String!
-        #   ticker: String!
-        # }
-        # input StockMetadataInput {
-        #   AlphaVantageSymbol: String!
-        #   ticker: String!
-        # }
-        # type StockPrice {
-        #   ticker: String!
-        #   date: AWSDateTime!
-        #   price: Float!
-        # }
-        # input StockPriceInput {
-        #   ticker: String!
-        #   date: AWSDateTime!
-        #   price: Float!
-        # }
+        type StockMetadata {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        input StockMetadataInput {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        type StockPrice {
+          ticker: String!
+          date: AWSDateTime!
+          price: Float!
+        }
+        input StockPriceInput {
+          ticker: String!
+          date: AWSDateTime!
+          price: Float!
+        }
 
 
         # type PortfolioParticipants {
@@ -119,17 +119,15 @@ Resources:
           newPortfolio(userId: ID!, portfolioName: String!): Portfolio!
           addPortfolioStock(portfolioId: ID!, data: PortfolioStockInput!): [PortfolioStock!]!
           removePortfolioStock(portfolioId: ID!, index: Int!): [PortfolioStock!]!
-          # registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
-          # unregisterStock(ticker: String!): String!
-          # deletePortfolio(portfolioId: ID!): String!
+          registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
+          unregisterStock(ticker: String!): String!          
           # allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
         }
         type Query {
           user(id: ID!): User
           portfolio(id: ID!): Portfolio
-          # allRegisteredStocks: [StockMetadata]!
-          # mostRecentStockPrice(ticker: String!): StockPrice!
-          # allUserPortfolios(userId: ID!): [String]
+          allRegisteredStocks: [StockMetadata]!
+          # mostRecentStockPrice(ticker: String!): StockPrice!         
         }
         ## type Subscription {
         ## }
@@ -489,6 +487,36 @@ Resources:
       ResponseMappingTemplate: |
         $util.toJson($ctx.stash.portfolioStocks)
 
+  # registerStock
+  RegisterStockMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: registerStock
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          },
+          "update" : {
+            "expression" : "SET #ticker = :ticker",
+            "expressionNames" : {
+                "#ticker" : "$ctx.args.stockMetadata.ticker"
+            },
+            "expressionValues" : {
+                ":ticker" : $util.dynamodb.toDynamoDBJson($ctx.args.stockMetadata)
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.args.stockMetadata)
+
   # removePortfolioStock
   RemovePortfolioStockMutationAppSyncResolver:
     Type: AWS::AppSync::Resolver
@@ -511,7 +539,58 @@ Resources:
       ResponseMappingTemplate: |
         $util.toJson($ctx.stash.portfolioStocks)
 
+  # unregisterStock
+  UnregisterStockMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: unregisterStock
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          },
+          "update" : {
+            "expression" : "REMOVE $ctx.args.ticker",
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.args.ticker)
+
   ## Query
+  # allRegisteredStocks
+  AllRegisteredStocksQueryAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: allRegisteredStocks
+      DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "GetItem",
+          "key" : {
+            "hashKey" : { "S" : "metadata" },
+            "rangeKey": { "S" : "tickers" }
+          }
+        }
+      ResponseMappingTemplate: |
+        #set ($tickers = [])
+        #foreach( $item in $ctx.result.values() )
+          #if( $item.ticker)
+            $util.qr($tickers.add($item))
+          #end
+        #end
+        $util.toJson($tickers)
+
   # user
   UserQueryAppSyncResolver:
     Type: AWS::AppSync::Resolver
@@ -577,122 +656,6 @@ Resources:
   #       }
   #     ResponseMappingTemplate: |
   #       $util.toJson($ctx.result)
-
-  # AllUserPortfoliosIdAppSyncFunctionConfiguration:
-  #   Type: AWS::AppSync::FunctionConfiguration
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     Name: AllUserPortfoliosIdAppSyncFunctionConfiguration
-  #     FunctionVersion: 2018-05-29
-  #     DataSourceName: !GetAtt UsersAppSyncDataSource.Name
-  #     RequestMappingTemplate: |
-  #       #set($userId = $ctx.stash.userId)
-  #       {
-  #         "version" : "2017-02-28",
-  #         "operation" : "Query",
-  #         "query" : {
-  #           "expression" : "hashKey = :hashKey AND begins_with(rangeKey, :rangeKey)",
-  #           "expressionValues" : {
-  #             ":hashKey" : { "S" : "$userId" },
-  #             ":rangeKey" : { "S" : "portfolio" }
-  #           }
-  #         }
-  #       }
-  #     ResponseMappingTemplate: |
-  #       #set($portfoliosIds = [])
-  #       #foreach($item in $ctx.result.items)
-  #         #set($portfolioId = $item.rangeKey.split("_")[1])
-  #         $util.qr($portfoliosIds.add($portfolioId))
-  #       #end
-  #       $util.toJson($portfoliosIds)
-
-  # AllUserPortfoliosAppSyncFunctionConfiguration:
-  #   Type: AWS::AppSync::FunctionConfiguration
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     Name: AllUserPortfoliosAppSyncFunctionConfiguration
-  #     FunctionVersion: 2018-05-29
-  #     DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
-  #     RequestMappingTemplate: !Sub
-  #       - |
-  #         #set($userId = $ctx.stash.userId)
-  #         #set($portfoliosIds = $ctx.stash.portfoliosIds)
-  #         {
-  #           "version": "2018-05-29",
-  #           "operation": "BatchGetItem",
-  #           #set($keys = [])
-  #           #foreach($portfolioId in $portfoliosIds)
-  #             $util.qr($tickers.add({
-  #               "haskKey": "$portfolioId",
-  #               "rangeKey": "details"
-  #             }))
-  #           #end
-  #           "tables" : {
-  #             "${TableName}": $util.toJson($keys)
-  #           }
-  #         }
-  #       - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
-  #     ResponseMappingTemplate: !Sub
-  #       - |
-  #         $util.toJson($ctx.result.data[${TableName}])
-  #       - { TableName: !Sub '${InvestmentsDynamoDBTableRef}' }
-
-  ## Mutation
-  # # registerStock
-  # RegisterStockMutationAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Mutation
-  #     FieldName: registerStock
-  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-  #     RequestMappingTemplate: |
-  #       {
-  #         "version" : "2017-02-28",
-  #         "operation" : "UpdateItem",
-  #         "key" : {
-  #           "hashKey" : { "S" : "metadata" },
-  #           "rangeKey": { "S" : "tickers" }
-  #         },
-  #         "update" : {
-  #           "expression" : "SET #ticker = :ticker",
-  #           "expressionNames" : {
-  #               "#ticker" : "$ctx.args.stockMetadata.ticker"
-  #           },
-  #           "expressionValues" : {
-  #               ":ticker" : $util.dynamodb.toDynamoDBJson($ctx.args.stockMetadata)
-  #           }
-  #         }
-  #       }
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.args.stockMetadata)
-
-  # # unregisterStock
-  # UnregisterStockMutationAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Mutation
-  #     FieldName: unregisterStock
-  #     DataSourceName: !GetAtt StocksPriceAppSyncDataSource.Name
-  #     RequestMappingTemplate: |
-  #       {
-  #         "version" : "2017-02-28",
-  #         "operation" : "UpdateItem",
-  #         "key" : {
-  #           "hashKey" : { "S" : "metadata" },
-  #           "rangeKey": { "S" : "tickers" }
-  #         },
-  #         "update" : {
-  #           "expression" : "REMOVE $ctx.args.ticker",
-  #         }
-  #       }
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.args.ticker)
 
   # # # deletePortfolio
   # # DeletePortfolioMutationAppSyncResolver:
@@ -795,25 +758,6 @@ Resources:
   #         "date": $item.rangeKey,
   #         "price": $item.price
   #       })
-
-  # # allUserPortfolios
-  # AllUserPortfoliosQueryAppSyncResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   DependsOn: AppSyncGraphQLSchema
-  #   Properties:
-  #     ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-  #     TypeName: Query
-  #     FieldName: allUserPortfolios
-  #     Kind: PIPELINE
-  #     RequestMappingTemplate: |
-  #       $util.qr($ctx.stash.put("userId", $ctx.args.userId))
-  #       {
-  #       }
-  #     PipelineConfig:
-  #       Functions:
-  #         - !GetAtt AllUserPortfoliosIdsAppSyncFunctionConfiguration.FunctionId
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.prev.result)
 
   ### DataSource
   NoneAppSyncDataSource:
