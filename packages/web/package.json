@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "dependencies": {
     "@types/react-datepicker": "^2.0.2",
     "apollo-link-state": "^0.4.2",
