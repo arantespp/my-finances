@@ -8,6 +8,7 @@ import { PortfolioStock } from '../types';
 export const REMOVE_PORTFOLIO_STOCK_MUTATION = gql`
   mutation removePortfolioStock($portfolioId: ID!, $index: Int!) {
     removePortfolioStock(portfolioId: $portfolioId, index: $index) {
+      id
       index
       ticker
       quantity

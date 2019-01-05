@@ -35,9 +35,6 @@ class StockDetail extends React.Component<Props> {
             <div className="StockDetail">
               <div className="columns">
                 <div className="column">
-                  <span>{index}</span>
-                </div>
-                <div className="column">
                   <span>{type}</span>
                 </div>
                 <div className="column">
@@ -48,6 +45,9 @@ class StockDetail extends React.Component<Props> {
                 </div>
                 <div className="column">
                   <span>{quantity}</span>
+                </div>
+                <div className="column">
+                  <span>V. Unit R$ {((value as number) / (quantity as number)).toFixed(2)}</span>
                 </div>
                 <div className="column">
                   <button

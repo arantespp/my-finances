@@ -28,6 +28,7 @@ interface State {
   ticker: string;
   value: number | string;
   quantity: number | string;
+  type: PortfolioStockType;
 }
 
 const dateFormat = 'YYYY-MM-DD';
@@ -38,6 +39,7 @@ class AddStock extends React.Component<Props, State> {
     ticker: '',
     value: '',
     quantity: '',
+    type: PortfolioStockType.B,
   };
 
   render() {
@@ -60,6 +62,22 @@ class AddStock extends React.Component<Props, State> {
                         />
                       </div>
                     </div>
+                    <div className="field">
+                      <label className="label">Tipo</label>
+                      <div className="control is-expanded has-icons-left">
+                        <div className="select">
+                          <select onChange={this.portfolioStockTypeOnChange}>
+                            <option value="" />
+                            <option value={PortfolioStockType.B}>Compra</option>
+                            <option value={PortfolioStockType.S}>Venda</option>
+                            <option value={PortfolioStockType.Y}>Dividendo</option>
+                          </select>
+                        </div>
+                        <span className="icon is-small is-left">
+                          <i className="fas fa-user" />
+                        </span>
+                      </div>
+                    </div>
                     <AllRegisteredStocksQuery query={ALL_REGISTERED_STOCKS_QUERY}>
                       {({ data }) => {
                         const options = data!.allRegisteredStocks || [];
@@ -69,6 +87,7 @@ class AddStock extends React.Component<Props, State> {
                             <div className="control is-expanded has-icons-left">
                               <div className="select">
                                 <select onChange={this.tickerOnChange}>
+                                  <option />
                                   {options.sort(this.sortStocks).map(({ ticker }, index) => {
                                     return <option key={index}>{ticker}</option>;
                                   })}
@@ -113,7 +132,10 @@ class AddStock extends React.Component<Props, State> {
                     </div>
                   </div>
                   <div className="control button-align">
-                    <button type="submit" className={`button is-primary ${loading && 'is-loading'}`}>
+                    <button
+                      type="submit"
+                      disabled={!this.allowSubmit()}
+                      className={`button is-primary ${loading && 'is-loading'}`}>
                       Submit
                     </button>
                   </div>
@@ -150,7 +172,7 @@ class AddStock extends React.Component<Props, State> {
     event.preventDefault();
     try {
       const { portfolioId } = this.props;
-      const { ticker, quantity, value, date } = this.state;
+      const { ticker, quantity, value, date, type } = this.state;
       await addPortfolioStock({
         variables: {
           portfolioId,
@@ -159,7 +181,7 @@ class AddStock extends React.Component<Props, State> {
             date,
             value: Number(value),
             quantity: Number(quantity),
-            type: PortfolioStockType.B,
+            type,
           },
         },
       });
@@ -168,8 +190,17 @@ class AddStock extends React.Component<Props, State> {
     }
   };
 
+  private allowSubmit = (): boolean => {
+    const { ticker, quantity, value, date, type } = this.state;
+    return !!ticker && !!quantity && !!value && !!date && !!type;
+  };
+
   private dateOnChange = (date: Date) => {
     this.setState({ date: utc(date).format(dateFormat) });
+  };
+
+  private portfolioStockTypeOnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    this.setState({ type: event.target.value as PortfolioStockType });
   };
 
   private tickerOnChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
