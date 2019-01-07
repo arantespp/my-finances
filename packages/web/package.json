@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "dependencies": {
     "apollo-link-state": "^0.4.2",
     "aws-amplify": "^1.1.18",
