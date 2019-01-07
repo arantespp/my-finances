@@ -2,7 +2,6 @@
   "name": "web",
   "version": "0.1.0",
   "dependencies": {
-    "@types/react-datepicker": "^2.0.2",
     "apollo-link-state": "^0.4.2",
     "aws-amplify": "^1.1.18",
     "aws-amplify-react": "^2.2.5",
@@ -11,10 +10,10 @@
     "bulma": "^0.7.2",
     "graphql-tag": "^2.10.0",
     "moment": "^2.23.0",
-    "react": "^16.6.3",
+    "react": "^16.7.0",
     "react-apollo": "^2.3.3",
     "react-datepicker": "^2.0.0",
-    "react-dom": "^16.6.3",
+    "react-dom": "^16.7.0",
     "react-router-dom": "^4.3.1",
     "react-scripts-scss-ts": "2.17.1"
   },
@@ -22,16 +21,20 @@
     "start": "react-scripts-ts start",
     "build": "react-scripts-ts build",
     "test": "react-scripts-ts test --env=jsdom",
-    "eject": "react-scripts-ts eject"
+    "eject": "react-scripts-ts eject",
+    "predeploy": "npm run build",
+    "deploy": "aws s3 sync build/ s3://my-finances-cloudfront-s3-bucket",
+    "postdeploy": "aws cloudfront create-invalidation --distribution-id E3CSF8YLQ1FQEI --paths '/*'"
   },
   "devDependencies": {
     "@types/graphql": "^14.0.4",
     "@types/jest": "^23.3.11",
-    "@types/node": "^10.12.11",
-    "@types/react": "^16.7.11",
+    "@types/node": "^10.12.18",
+    "@types/react": "^16.7.18",
+    "@types/react-datepicker": "^2.0.2",
     "@types/react-dom": "^16.0.11",
     "@types/react-router": "^4.4.3",
     "@types/react-router-dom": "^4.3.1",
-    "typescript": "^3.2.1"
+    "typescript": "^3.2.2"
   }
 }

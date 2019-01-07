@@ -21,3 +21,4 @@ testem.log
 /typings
 
 config.ts
+config.js

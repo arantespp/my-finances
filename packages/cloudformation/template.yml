@@ -18,6 +18,7 @@ Resources:
       TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/database.yml
       Parameters:
         StackName: !Sub ${StackName}
+      TimeoutInMinutes: 10
 
   CognitoCloudformationStack:
     Type: AWS::CloudFormation::Stack
@@ -25,6 +26,7 @@ Resources:
       TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/cognito.yml
       Parameters:
         StackName: !Sub ${StackName}
+      TimeoutInMinutes: 10
 
   AppSyncApiCloudFormationStack:
     Type: AWS::CloudFormation::Stack
@@ -43,6 +45,7 @@ Resources:
         InvestmentsDynamoDBTableRef: !GetAtt DatabaseCloudformationStack.Outputs.InvestmentsDynamoDBTableRef
         InvestmentsDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.InvestmentsDynamoDBTableArn
         IdentityPoolAuthorizedIAMRoleRef: !GetAtt CognitoCloudformationStack.Outputs.IdentityPoolAuthorizedIAMRoleRef
+      TimeoutInMinutes: 10
 
   StocksPriceCronjobCloudformationStack:
     Type: AWS::CloudFormation::Stack
@@ -53,6 +56,16 @@ Resources:
         StackName: !Sub ${StackName}
         StocksPriceDynamoDBTableArn: !GetAtt DatabaseCloudformationStack.Outputs.StocksPriceDynamoDBTableArn
         IdentityPoolUnauthorizedIAMRoleRef: !GetAtt CognitoCloudformationStack.Outputs.IdentityPoolUnauthorizedIAMRoleRef
+      TimeoutInMinutes: 10
+
+  CloudFrontCloudFormationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/my-finances-cloudformation/cloudfront.yml
+      Parameters:
+        StackName: !Sub ${StackName}
+        CloudFrontAlias: minhasfinancas.arantespp.com
+      TimeoutInMinutes: 10
 
 Outputs:
   Region:
@@ -73,3 +86,12 @@ Outputs:
   AppSyncGraphQLApiEndpoint:
     Description: AppSync GraphQL API Endpoint
     Value: !GetAtt AppSyncApiCloudFormationStack.Outputs.AppSyncGraphQLApiEndpoint
+  CloudFrontS3Bucket:
+    Description: CloudFront S3 Bucket name
+    Value: !GetAtt CloudFrontCloudFormationStack.Outputs.CloudFrontS3Bucket
+  CloudFrontDistributionID:
+    Description: CloudFront Distribution ID
+    Value: !GetAtt CloudFrontCloudFormationStack.Outputs.CloudFrontDistributionID
+  CloudFrontDomainName:
+    Description: CloudFront Domain Name
+    Value: !GetAtt CloudFrontCloudFormationStack.Outputs.CloudFrontDomainName

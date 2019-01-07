@@ -1,0 +1,106 @@
+# @format
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Web App AWS Cloudformation
+
+Parameters:
+  StackName:
+    Type: String
+
+  CloudFrontAlias:
+    Type: String
+
+Resources:
+  CloudFrontS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${StackName}-cloudfront-s3-bucket
+      # AccessControl: PublicRead
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - '*'
+            Id: OpenCors
+            MaxAge: 3600
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+
+  CloudFrontS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CloudFrontS3Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref CloudFrontS3Bucket, '/*']]
+            Principal: '*'
+
+  CloudFrontCloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'Origin for WebCloudFrontDistributionOriginAccessIdentity. Stack: ${StackName}'
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn:
+      - CloudFrontS3Bucket
+      - CloudFrontCloudFrontOriginAccessIdentity
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub ${CloudFrontAlias}
+        Origins:
+          - DomainName: !GetAtt CloudFrontS3Bucket.DomainName
+            Id: !Ref CloudFrontS3Bucket
+            S3OriginConfig:
+              OriginAccessIdentity:
+                !Join ['/', [origin-access-identity, cloudfront, !Ref CloudFrontCloudFrontOriginAccessIdentity]]
+        Enabled: true
+        HttpVersion: http2
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          Compress: true
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          TargetOriginId: !Ref CloudFrontS3Bucket
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        PriceClass: PriceClass_100
+        # ViewerCertificate:
+        # *.triangulostecnologia.com
+        # AcmCertificateArn: arn:aws:acm:us-east-1:567757199502:certificate/073df1cf-c402-4d57-95fb-394e76a7a7c1
+        # SslSupportMethod: sni-only
+
+Outputs:
+  CloudFrontS3Bucket:
+    Description: CloudFront S3 Bucket name
+    Value: !Ref CloudFrontS3Bucket
+  CloudFrontDistributionID:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+  CloudFrontDomainName:
+    Description: CloudFront Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName

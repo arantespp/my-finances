@@ -4,13 +4,15 @@ import * as React from 'react';
 
 import { Route, Switch } from 'react-router-dom';
 
-import Stocks from '@components/Admin/Stocks';
-import Investments from '@components/Investments';
-import Portfolio from '@components/Portfolio';
+import asyncComponent from '@components/AsyncComponent';
 
 import Footer from './Footer';
 import Header from './Header';
 import Menu from './Menu';
+
+const Stocks = asyncComponent(() => import('@components/Admin/Stocks').then(module => module.default));
+const Investments = asyncComponent(() => import('@components/Investments').then(module => module.default));
+const Portfolio = asyncComponent(() => import('@components/Portfolio').then(module => module.default));
 
 interface State {
   hiddenMenu: boolean;
