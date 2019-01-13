@@ -48,7 +48,110 @@ Resources:
     Type: AWS::AppSync::GraphQLSchema
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      DefinitionS3Location: s3://my-finances-cloudformation/appsync-schema.graphql
+      Definition: |
+        type User {
+          id: ID!
+          portfolios: [Portfolio]!
+        }
+        input PortfolioInput {
+          name: String!
+        }
+        type Portfolio {
+          id: ID!
+          name: String!
+          createdAt: AWSDateTime!
+          participation: PortfolioParticipation!
+          stocksGroups: [PortfolioStocksGroup]!
+          # participants: [PortfolioParticipants!]!
+          # current: PortfolioData!
+        }
+        enum PortfolioParticipation {
+          viewOnly
+          participate
+          owner
+        }
+        input PortfolioStocksGroupInput {
+          name: String!
+        }
+        type PortfolioStocksGroup {
+          id: ID!
+          name: String!
+          stocks: [PortfolioStock]!
+        }
+        input PortfolioStockInput {
+          ticker: String!
+          date: String!
+          type: PortfolioStockType!
+          value: Float!
+          quantity: Int!
+        }
+        enum PortfolioStockType {
+          ## Buy
+          B
+          ## Sell
+          S
+          ## Yield
+          Y
+        }
+        type PortfolioStock {
+          id: ID!
+          index: Int!
+          ticker: String!
+          date: String!
+          type: PortfolioStockType!
+          value: Float!
+          quantity: Int!
+          mostRecentPrice: Float
+        }
+        type StockMetadata {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        input StockMetadataInput {
+          AlphaVantageSymbol: String!
+          ticker: String!
+        }
+        type StockPrice {
+          ticker: ID!
+          date: AWSDateTime!
+          price: Float!
+        }
+        input StockPriceInput {
+          ticker: String!
+          date: AWSDateTime!
+          price: Float!
+        }
+
+        # type PortfolioParticipants {
+        #   userId: ID!
+        #   portfolioView: PortfolioView!
+        # }
+
+        type Mutation {
+          newPortfolio(userId: ID!, input: PortfolioInput!): Portfolio!
+          newPortfolioStocksGroup(portfolioId: ID!, input: PortfolioStocksGroupInput!): PortfolioStocksGroup!
+          deletePortfolioStocksGroup(portfolioId: ID!, portfolioStocksGroupId: ID!): PortfolioStocksGroup!
+          addPortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, input: PortfolioStockInput!): [PortfolioStock!]!
+          removePortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, index: Int!): [PortfolioStock!]!
+          # Admin register stock
+          registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
+          # Admin unregister stock
+          unregisterStock(ticker: String!): String!
+          # allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
+        }
+        type Query {
+          user(id: ID!): User
+          portfolio(id: ID!): Portfolio
+          allRegisteredStocks: [StockMetadata]!
+          mostRecentStockPrice(ticker: ID!): StockPrice!
+        }
+        ## type Subscription {
+        ## }
+        schema {
+          query: Query
+          mutation: Mutation
+          ## subscription: Subscription
+        }
 
   ## Functions
   # A
@@ -207,11 +310,12 @@ Resources:
         {
         }
       ResponseMappingTemplate: |
+        #set($portfolioStocksGroupId = $ctx.stash.portfolioStocksGroupId)
         #set($stocks = [])
         #foreach( $stock in $ctx.stash.portfolioStocks )
           #set($stockSubstrings = $stock.split(" "))
           #set($stockObj = {
-            "id": $foreach.index,
+            "id": "$portfolioStocksGroupId - $foreach.index",
             "index": $foreach.index,
             "ticker": $stockSubstrings[0],
             "date": $stockSubstrings[1],
@@ -337,28 +441,6 @@ Resources:
 
   # O
   # P
-  PortfolioStocksAppSyncFunctionConfiguration:
-    Type: AWS::AppSync::FunctionConfiguration
-    DependsOn: AppSyncGraphQLSchema
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      Name: PortfolioStocksAppSyncFunctionConfiguration
-      FunctionVersion: 2018-05-29
-      DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
-      RequestMappingTemplate: |
-        #set($portfolioId = $ctx.stash.portfolioId)
-        {
-          "version" : "2017-02-28",
-          "operation" : "GetItem",
-          "key" : {
-            "hashKey" : { "S" : "$portfolioId" },
-            "rangeKey": { "S" : "stocks" }
-          }
-        }
-      ResponseMappingTemplate: |
-        #set($ctx.stash.portfolioStocks = $ctx.result.stocks)
-        $util.toJson($ctx.result.stocks)
-
   PortfolioStocksGroupsAppSyncFunctionConfiguration:
     Type: AWS::AppSync::FunctionConfiguration
     DependsOn: AppSyncGraphQLSchema
@@ -401,13 +483,14 @@ Resources:
       DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
       RequestMappingTemplate: |
         #set($portfolioId = $ctx.stash.portfolioId)
+        #set($portfolioStocksGroupId = $ctx.stash.portfolioStocksGroupId)
         #set($index = $ctx.stash.index)
         {
           "version" : "2017-02-28",
           "operation" : "UpdateItem",
           "key" : {
             "hashKey" : { "S" : "$portfolioId" },
-            "rangeKey": { "S" : "stocks" }
+            "rangeKey": { "S" : "stocksGroup_$portfolioStocksGroupId" }
           },
           "update": {
             "expression": "REMOVE stocks[$index]",
@@ -473,7 +556,6 @@ Resources:
   StocksPortfolioStocksGroupAppSyncResolver:
     Type: AWS::AppSync::Resolver
     DependsOn:
-      - PortfolioStocksAppSyncFunctionConfiguration
       - MapPortfolioStockAppSyncFunctionConfiguration
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
@@ -481,11 +563,11 @@ Resources:
       FieldName: stocks
       Kind: PIPELINE
       RequestMappingTemplate: |
+        #set($ctx.stash.portfolioStocksGroupId = $ctx.source.id)
         #set($ctx.stash.portfolioStocks = $ctx.source.stocks)
         {}
       PipelineConfig:
         Functions:
-          # - !GetAtt PortfolioStocksAppSyncFunctionConfiguration.FunctionId
           - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
@@ -636,6 +718,7 @@ Resources:
       Kind: PIPELINE
       RequestMappingTemplate: |
         $util.qr($ctx.stash.put("portfolioId", $ctx.args.portfolioId))
+        $util.qr($ctx.stash.put("portfolioStocksGroupId", $ctx.args.portfolioStocksGroupId))
         $util.qr($ctx.stash.put("index", $ctx.args.index))
         {}
       PipelineConfig:

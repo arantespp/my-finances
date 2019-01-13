@@ -46,7 +46,7 @@ enum PortfolioStockType {
 }
 type PortfolioStock {
   id: ID!
-  index: ID!
+  index: Int!
   ticker: String!
   date: String!
   type: PortfolioStockType!
@@ -83,7 +83,7 @@ type Mutation {
   newPortfolioStocksGroup(portfolioId: ID!, input: PortfolioStocksGroupInput!): PortfolioStocksGroup!
   deletePortfolioStocksGroup(portfolioId: ID!, portfolioStocksGroupId: ID!): PortfolioStocksGroup!
   addPortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, input: PortfolioStockInput!): [PortfolioStock!]!
-  removePortfolioStock(portfolioId: ID!, index: Int!): [PortfolioStock!]!
+  removePortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, index: Int!): [PortfolioStock!]!
   # Admin register stock
   registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
   # Admin unregister stock

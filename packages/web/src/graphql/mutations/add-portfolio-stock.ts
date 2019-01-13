@@ -3,12 +3,12 @@
 import gql from 'graphql-tag';
 import { Mutation } from 'react-apollo';
 
-import { PortfolioStockType } from '../enums';
+import { PortfolioStockInput } from '../inputs';
 import { PortfolioStock } from '../types';
 
 export const ADD_PORTFOLIO_STOCK_MUTATION = gql`
-  mutation addPortfolioStock($portfolioId: ID!, $data: PortfolioStockInput!) {
-    addPortfolioStock(portfolioId: $portfolioId, data: $data) {
+  mutation addPortfolioStock($portfolioId: ID!, $portfolioStocksGroupId: ID!, $input: PortfolioStockInput!) {
+    addPortfolioStock(portfolioId: $portfolioId, portfolioStocksGroupId: $portfolioStocksGroupId, input: $input) {
       id
       index
       ticker
@@ -26,13 +26,8 @@ export interface AddPortfolioStockMutationResponse {
 
 export interface AddPortfolioStockMutationVariables {
   portfolioId: string;
-  data: {
-    ticker: string;
-    date: string;
-    type: PortfolioStockType;
-    value: number;
-    quantity: number;
-  };
+  portfolioStocksGroupId: string;
+  input: PortfolioStockInput;
 }
 
 export class AddPortfolioStockMutation extends Mutation<

@@ -6,8 +6,8 @@ import { Mutation } from 'react-apollo';
 import { PortfolioStock } from '../types';
 
 export const REMOVE_PORTFOLIO_STOCK_MUTATION = gql`
-  mutation removePortfolioStock($portfolioId: ID!, $index: Int!) {
-    removePortfolioStock(portfolioId: $portfolioId, index: $index) {
+  mutation removePortfolioStock($portfolioId: ID!, $portfolioStocksGroupId: ID!, $index: Int!) {
+    removePortfolioStock(portfolioId: $portfolioId, portfolioStocksGroupId: $portfolioStocksGroupId, index: $index) {
       id
       index
       ticker
@@ -25,6 +25,7 @@ export interface RemovePortfolioStockMutationResponse {
 
 export interface RemovePortfolioStockMutationVariables {
   portfolioId: string;
+  portfolioStocksGroupId: string;
   index: number;
 }
 

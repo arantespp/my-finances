@@ -27,23 +27,6 @@ export const PORTFOLIO_QUERY = gql`
   }
 `;
 
-export const PORTFOLIO_STOCKS_QUERY = gql`
-  query portfolio($portfolioId: ID!) {
-    portfolio(id: $portfolioId) {
-      id
-      stocks {
-        id
-        index
-        ticker
-        value
-        quantity
-        date
-        type
-      }
-    }
-  }
-`;
-
 export interface PortfolioQueryResponse {
   portfolio: Portfolio;
 }
