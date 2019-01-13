@@ -10,6 +10,19 @@ export const PORTFOLIO_QUERY = gql`
     portfolio(id: $portfolioId) {
       id
       name
+      stocksGroups {
+        id
+        name
+        stocks {
+          id
+          index
+          ticker
+          value
+          quantity
+          date
+          type
+        }
+      }
     }
   }
 `;

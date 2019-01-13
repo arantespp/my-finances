@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import Loading from '@components/Loading';
 
-import NewPortfolio from './NewPortfolio';
+import NewPortfolio from '../NewPortfolio';
 import PortfolioCard from './PortfolioCard';
 
 import { USER_PORTFOLIOS_QUERY, UserPortfoliosQuery } from '@graphql/queries/user-portfolios';

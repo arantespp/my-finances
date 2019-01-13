@@ -1,65 +1,67 @@
 /** @format */
 
-import * as React from 'react';
+// /** @format */
 
-import { PortfolioStockType } from '@graphql/enums';
-import { MOST_RECENT_STOCK_PRICE_QUERY, MostRecentStockPriceQuery } from '@graphql/queries/most-recent-stock-price';
-import { PortfolioStock } from '@graphql/types';
+// import * as React from 'react';
 
-import StockDetail from './StockDetail';
+// import { PortfolioStockType } from '@graphql/enums';
+// import { MOST_RECENT_STOCK_PRICE_QUERY, MostRecentStockPriceQuery } from '@graphql/queries/most-recent-stock-price';
+// import { PortfolioStock } from '@graphql/types';
 
-const POOL_INTERVAL = 60 * 60 * 1000; // 1 hour
+// import StockDetail from './StockDetail';
 
-interface Props {
-  portfolioId: string;
-  stocks: PortfolioStock[];
-}
+// const POOL_INTERVAL = 60 * 60 * 1000; // 1 hour
 
-class StockCard extends React.Component<Props> {
-  render() {
-    const { portfolioId, stocks } = this.props;
-    const ticker = stocks[0].ticker!;
-    return (
-      <MostRecentStockPriceQuery
-        query={MOST_RECENT_STOCK_PRICE_QUERY}
-        variables={{ ticker }}
-        pollInterval={POOL_INTERVAL}>
-        {({ data }) => {
-          const lastPrice = data!.mostRecentStockPrice ? data!.mostRecentStockPrice.price! : 0;
-          const stocksQuantity = this.stocksQuantity(stocks);
-          return (
-            <div className="StockCard">
-              <div className="columns">
-                <span className="column has-text-weight-bold">{ticker}</span>
-                <span className="column">Último valor: R$ {lastPrice.toFixed(2)}</span>
-                <span className="column">Quantidade {stocksQuantity}</span>
-                <span className="column">Valor total R$ {(lastPrice * stocksQuantity).toFixed(2)}</span>
-              </div>
-              {stocks.sort(this.sortByDate).map(stock => (
-                <StockDetail key={stock.index} stock={stock} portfolioId={portfolioId} />
-              ))}
-            </div>
-          );
-        }}
-      </MostRecentStockPriceQuery>
-    );
-  }
+// interface Props {
+//   portfolioId: string;
+//   stocks: PortfolioStock[];
+// }
 
-  private stocksQuantity = (stocks: PortfolioStock[]): number => {
-    return stocks.reduce(
-      (sum, stock) =>
-        stock.type! === PortfolioStockType.B
-          ? sum + stock.quantity!
-          : stock.type! === PortfolioStockType.S
-          ? sum - stock.quantity!
-          : sum,
-      0,
-    );
-  };
+// class StockCard extends React.Component<Props> {
+//   render() {
+//     const { portfolioId, stocks } = this.props;
+//     const ticker = stocks[0].ticker!;
+//     return (
+//       <MostRecentStockPriceQuery
+//         query={MOST_RECENT_STOCK_PRICE_QUERY}
+//         variables={{ ticker }}
+//         pollInterval={POOL_INTERVAL}>
+//         {({ data }) => {
+//           const lastPrice = data!.mostRecentStockPrice ? data!.mostRecentStockPrice.price! : 0;
+//           const stocksQuantity = this.stocksQuantity(stocks);
+//           return (
+//             <div className="StockCard">
+//               <div className="columns">
+//                 <span className="column has-text-weight-bold">{ticker}</span>
+//                 <span className="column">Último valor: R$ {lastPrice.toFixed(2)}</span>
+//                 <span className="column">Quantidade {stocksQuantity}</span>
+//                 <span className="column">Valor total R$ {(lastPrice * stocksQuantity).toFixed(2)}</span>
+//               </div>
+//               {stocks.sort(this.sortByDate).map(stock => (
+//                 <StockDetail key={stock.index} stock={stock} portfolioId={portfolioId} />
+//               ))}
+//             </div>
+//           );
+//         }}
+//       </MostRecentStockPriceQuery>
+//     );
+//   }
 
-  private sortByDate = (stockA: PortfolioStock, stockB: PortfolioStock): number => {
-    return stockA.date! < stockB.date! ? 1 : -1;
-  };
-}
+//   private stocksQuantity = (stocks: PortfolioStock[]): number => {
+//     return stocks.reduce(
+//       (sum, stock) =>
+//         stock.type! === PortfolioStockType.B
+//           ? sum + stock.quantity!
+//           : stock.type! === PortfolioStockType.S
+//           ? sum - stock.quantity!
+//           : sum,
+//       0,
+//     );
+//   };
 
-export default StockCard;
+//   private sortByDate = (stockA: PortfolioStock, stockB: PortfolioStock): number => {
+//     return stockA.date! < stockB.date! ? 1 : -1;
+//   };
+// }
+
+// export default StockCard;

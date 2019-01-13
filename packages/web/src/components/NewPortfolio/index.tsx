@@ -35,7 +35,7 @@ class NewPortfolio extends React.Component<Props, State> {
       <NewPortfolioMutation mutation={NEW_PORTFOLIO_MUTATION} update={this.update}>
         {(newPortfolio, { loading }) => {
           return (
-            <div>
+            <div className="NewPortfolio">
               <form onSubmit={this.onSubmit(newPortfolio)}>
                 <div className="field">
                   <p className="control has-icons-left has-icons-right">
@@ -72,7 +72,7 @@ class NewPortfolio extends React.Component<Props, State> {
     try {
       const { userId } = this.props;
       const { portfolioName } = this.state;
-      await newPortfolio({ variables: { userId, portfolioName } });
+      await newPortfolio({ variables: { userId, input: { name: portfolioName } } });
     } catch (e) {
       throw e;
     }

@@ -5,14 +5,16 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router-dom';
 
 import Loading from '@components/Loading';
-import LongShort from '@components/LongShort';
+// import LongShort from '@components/LongShort';
 import PortfolioDetails from '@components/PortfolioDetails';
-import PortfolioStocks from '@components/PortfolioStocks';
+// import PortfolioStocksGroup from '@components/PortfolioStocksGroup';
 
 import { PORTFOLIO_QUERY, PortfolioQuery } from '@graphql/queries/portfolio';
-import { Portfolio as PortfolioType } from '@graphql/types';
+import { Portfolio as PortfolioGraphQLType } from '@graphql/types';
 
-type ComponentNames = 'Detalhes' | 'Ações' | 'Long & Short';
+enum ComponentsTypes {
+  Details,
+}
 
 interface Props
   extends RouteComponentProps<
@@ -24,48 +26,53 @@ interface Props
   > {}
 
 interface State {
-  componentName: ComponentNames;
+  componentType: ComponentsTypes;
 }
 
 class Portfolio extends React.Component<Props, State> {
   state = {
-    componentName: 'Ações' as ComponentNames,
+    componentType: ComponentsTypes.Details,
   };
 
-  components: Array<{ name: ComponentNames; component: React.ComponentClass<{ portfolio: PortfolioType }> }> = [
-    {
-      name: 'Detalhes',
-      component: PortfolioDetails,
-    },
-    {
-      name: 'Ações',
-      component: PortfolioStocks,
-    },
-    {
-      name: 'Long & Short',
-      component: LongShort,
-    },
-  ];
+  // components: Array<{ name: ComponentNames; component: React.ComponentClass<{ portfolio: PortfolioType }> }> = [
+  //   {
+  //     name: 'Detalhes',
+  //     component: PortfolioDetails,
+  //   },
+  // {
+  //   name: 'Ações',
+  //   component: PortfolioStocksGroup,
+  // },
+  // {
+  //   name: 'Long & Short',
+  //   component: LongShort,
+  // },
+  // ];
 
   render() {
     const { portfolioId } = this.props.location.state;
-    const { componentName } = this.state;
+    const { componentType } = this.state;
     return (
       <PortfolioQuery query={PORTFOLIO_QUERY} variables={{ portfolioId }} onError={this.onError}>
         {({ loading, data }) => {
+          // const { stocksGroups } = data!.portfolio!;
+          // console.log(stocksGroups);
           return loading ? (
             <Loading />
           ) : (
             <div>
               <div className="tabs">
                 <ul>
-                  {this.components.map(({ name }) => {
+                  <li className={componentType === ComponentsTypes.Details ? 'is-active' : ''}>
+                    <a>Detalhes</a>
+                  </li>
+                  {/* {this.components.map(({ name }) => {
                     return (
                       <li key={name} className={name === componentName ? 'is-active' : ''}>
                         <a onClick={this.changeComponentState(name)}>{name}</a>
                       </li>
                     );
-                  })}
+                  })} */}
                 </ul>
               </div>
               {this.componentToRender(data!.portfolio)}
@@ -80,14 +87,16 @@ class Portfolio extends React.Component<Props, State> {
     throw e;
   };
 
-  private changeComponentState = (name: ComponentNames) => () => {
-    this.setState({ componentName: name });
-  };
+  // private changeComponentState = (name: ComponentNames) => () => {
+  //   this.setState({ componentName: name });
+  // };
 
-  private componentToRender = (portfolio: PortfolioType): React.ReactNode => {
-    const { componentName } = this.state;
-    const Component = this.components.find(({ name }) => componentName === name)!.component;
-    return <Component portfolio={portfolio} />;
+  private componentToRender = (portfolio: PortfolioGraphQLType): React.ReactNode => {
+    const { componentType } = this.state;
+    switch (componentType) {
+      case ComponentsTypes.Details:
+        return <PortfolioDetails portfolio={portfolio} />;
+    }
   };
 }
 
