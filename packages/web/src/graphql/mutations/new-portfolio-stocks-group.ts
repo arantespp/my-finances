@@ -7,7 +7,7 @@ import { PortfolioStocksGroupInput } from '../inputs';
 import { Portfolio } from '../types';
 
 export const NEW_PORTFOLIO_STOCKS_GROUP_MUTATION = gql`
-  mutation newPortfolioStocksGroup($userId: ID!, $input: PortfolioStocksGroupInput!) {
+  mutation newPortfolioStocksGroup($portfolioId: ID!, $input: PortfolioStocksGroupInput!) {
     newPortfolioStocksGroup(portfolioId: $portfolioId, input: $input) {
       id
       name
@@ -16,12 +16,15 @@ export const NEW_PORTFOLIO_STOCKS_GROUP_MUTATION = gql`
 `;
 
 export interface NewPortfolioStocksGroupMutationResponse {
-  newPortfolio: Portfolio;
+  newPortfolioStocksGroup: Portfolio;
 }
 
-export interface NewPortfolioStocksGroupMutationVariables extends PortfolioStocksGroupInput {}
+export interface NewPortfolioStocksGroupMutationVariables {
+  portfolioId: string;
+  input: PortfolioStocksGroupInput;
+}
 
-export class NewPortfolioMutation extends Mutation<
+export class NewPortfolioStocksGroupMutation extends Mutation<
   NewPortfolioStocksGroupMutationResponse,
   NewPortfolioStocksGroupMutationVariables
 > {}

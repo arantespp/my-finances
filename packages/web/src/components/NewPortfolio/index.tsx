@@ -37,21 +37,25 @@ class NewPortfolio extends React.Component<Props, State> {
           return (
             <div className="NewPortfolio">
               <form onSubmit={this.onSubmit(newPortfolio)}>
-                <div className="field">
-                  <p className="control has-icons-left has-icons-right">
-                    <input className="input" type="text" onChange={this.onChange} />
-                    <span className="icon is-small is-left">
-                      <i className="fas fa-envelope" />
-                    </span>
-                    <span className="icon is-small is-right">
-                      <i className="fas fa-check" />
-                    </span>
-                  </p>
-                </div>
-                <div className="field">
-                  <p className="control">
-                    <button className={`button is-success ${loading && 'is-loading'}`}>Criar</button>
-                  </p>
+                <div className="field is-horizontal">
+                  <div className="field-body">
+                    <div className="field">
+                      <p className="control has-icons-left has-icons-right">
+                        <input className="input" type="text" onChange={this.onChange} />
+                        <span className="icon is-small is-left">
+                          <i className="fas fa-envelope" />
+                        </span>
+                        <span className="icon is-small is-right">
+                          <i className="fas fa-check" />
+                        </span>
+                      </p>
+                    </div>
+                    <div className="field">
+                      <p className="control">
+                        <button className={`button is-success ${loading && 'is-loading'}`}>Criar</button>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>
@@ -61,12 +65,12 @@ class NewPortfolio extends React.Component<Props, State> {
     );
   }
 
-  private onChange = (e: any) => {
+  private onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     this.setState({ portfolioName: e.target.value });
   };
 
   private onSubmit = (newPortfolio: MutationFn<NewPortfolioMutationResponse, NewPortfolioMutationVariables>) => async (
-    e: any,
+    e: React.FormEvent<HTMLFormElement>,
   ) => {
     e.preventDefault();
     try {

@@ -1,6 +1,6 @@
 /** @format */
 
-import { PortfolioStocksGroups } from './portfolio-stocks-groups';
+import { PortfolioStocksGroup } from './portfolio-stocks-group';
 
 export type PortfolioParticipation = 'viewOnly' | 'participate' | 'owner';
 
@@ -9,5 +9,5 @@ export interface Portfolio {
   name?: string;
   createdAt?: string;
   participation?: PortfolioParticipation;
-  stocksGroups?: PortfolioStocksGroups[];
+  stocksGroups?: PortfolioStocksGroup[];
 }

@@ -2,7 +2,7 @@
 
 import { PortfolioStock } from './portfolio-stock';
 
-export interface PortfolioStocksGroups {
+export interface PortfolioStocksGroup {
   id: string;
   name?: string;
   stocks: PortfolioStock[];
