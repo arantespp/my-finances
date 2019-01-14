@@ -61,9 +61,7 @@ Resources:
           name: String!
           createdAt: AWSDateTime!
           participation: PortfolioParticipation!
-          stocksGroups: [PortfolioStocksGroup]!
-          # participants: [PortfolioParticipants!]!
-          # current: PortfolioData!
+          stocksGroups: [PortfolioStocksGroup]!          
         }
         enum PortfolioParticipation {
           viewOnly
@@ -122,22 +120,21 @@ Resources:
           price: Float!
         }
 
-        # type PortfolioParticipants {
-        #   userId: ID!
-        #   portfolioView: PortfolioView!
-        # }
-
         type Mutation {
           newPortfolio(userId: ID!, input: PortfolioInput!): Portfolio!
+          
           newPortfolioStocksGroup(portfolioId: ID!, input: PortfolioStocksGroupInput!): PortfolioStocksGroup!
           deletePortfolioStocksGroup(portfolioId: ID!, portfolioStocksGroupId: ID!): PortfolioStocksGroup!
-          addPortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, input: PortfolioStockInput!): [PortfolioStock!]!
+          
+          # Add portfolio stock
+          addPortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, index: Int, input: PortfolioStockInput!): [PortfolioStock!]!
           removePortfolioStock(portfolioId: ID!, portfolioStocksGroupId: ID!, index: Int!): [PortfolioStock!]!
+          
           # Admin register stock
           registerStock(stockMetadata: StockMetadataInput!): StockMetadata!
           # Admin unregister stock
           unregisterStock(ticker: String!): String!
-          # allowUserToViewPortfolio(userId: ID!, portfolioId: ID!, kind: PortfolioView!): Boolean!
+          
         }
         type Query {
           user(id: ID!): User
@@ -165,8 +162,17 @@ Resources:
       DataSourceName: !GetAtt InvestmentsAppSyncDataSource.Name
       RequestMappingTemplate: |
         #set($portfolioId = $ctx.stash.portfolioId)
-        #set($portfolioStocksGroupId = $ctx.stash.portfolioStocksGroupId)        
+        #set($portfolioStocksGroupId = $ctx.stash.portfolioStocksGroupId)
         #set($data = $ctx.stash.input)
+
+        #set($stockData = "$data.ticker")
+        #set($stockData = "$stockData $data.date")
+        #set($stockData = "$stockData $data.type")
+        #set($stockData = "$stockData $data.value")
+        #set($stockData = "$stockData $data.quantity")
+        ## Brokerage
+        #set($stockData = "$stockData 0")
+
         {
           "version" : "2017-02-28",
           "operation" : "UpdateItem",
@@ -174,18 +180,22 @@ Resources:
             "hashKey" : { "S" : "$portfolioId" },
             "rangeKey": { "S" : "stocksGroup_$portfolioStocksGroupId" }
           },
-          "update": {
-            "expression": "SET stocks = list_append(if_not_exists(stocks, :emptyList), :stockData)",
-            #set($stockData = "$data.ticker")
-            #set($stockData = "$stockData $data.date")
-            #set($stockData = "$stockData $data.type")
-            #set($stockData = "$stockData $data.value")
-            #set($stockData = "$stockData $data.quantity")
-            "expressionValues": {
-              ":stockData": $util.dynamodb.toDynamoDBJson([ $stockData ]),
-              ":emptyList": { "L": [] }
+          #if($ctx.stash.index)
+            "update": {
+              "expression": "SET stocks[$ctx.stash.index] = :stockData",
+              "expressionValues": {
+                ":stockData": $util.dynamodb.toDynamoDBJson($stockData)
+              }
             }
-          }
+          #else
+            "update": {
+              "expression": "SET stocks = list_append(if_not_exists(stocks, :emptyList), :stockData)",
+              "expressionValues": {
+                ":stockData": $util.dynamodb.toDynamoDBJson([ $stockData ]),
+                ":emptyList": { "L": [] }
+              }
+            }
+          #end          
         }
       ResponseMappingTemplate: |
         #set($ctx.stash.hashKey = $ctx.result.hashKey)
@@ -593,6 +603,51 @@ Resources:
         $util.toJson($ctx.result.price)
 
   ## Mutation
+  # addPortfolioStock
+  AddPortfolioStockMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+      - AddPortfolioStockAppSyncFunctionConfiguration
+      - MapPortfolioStockAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: addPortfolioStock
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        $util.qr($ctx.stash.put("portfolioId", $ctx.args.portfolioId))
+        $util.qr($ctx.stash.put("portfolioStocksGroupId", $ctx.args.portfolioStocksGroupId))
+        #if($ctx.args.index)
+          $util.qr($ctx.stash.put("index", $ctx.args.index))
+        #end
+        $util.qr($ctx.stash.put("input", $ctx.args.input))
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt AddPortfolioStockAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.stash.portfolioStocks)
+
+  # deletePortfolioStocksGroup
+  DeletePortfolioStocksGroupMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: DeletePortfolioStocksGroupAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: deletePortfolioStocksGroup
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        #set($ctx.stash.portfolioId = $ctx.args.portfolioId)
+        #set($ctx.stash.portfolioStocksGroupId = $ctx.args.portfolioStocksGroupId)
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt DeletePortfolioStocksGroupAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.stash.deletedPortfolioStocksGroup)
+
   # newPortfolio
   NewPortfolioMutationAppSyncResolver:
     Type: AWS::AppSync::Resolver
@@ -632,48 +687,6 @@ Resources:
           - !GetAtt NewPortfolioStocksGroupAppSyncFunctionConfiguration.FunctionId
       ResponseMappingTemplate: |
         $util.toJson($ctx.stash.newPortfolioStocksGroup)
-
-  # deletePortfolioStocksGroup
-  DeletePortfolioStocksGroupMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: DeletePortfolioStocksGroupAppSyncFunctionConfiguration
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: deletePortfolioStocksGroup
-      Kind: PIPELINE
-      RequestMappingTemplate: |
-        #set($ctx.stash.portfolioId = $ctx.args.portfolioId)
-        #set($ctx.stash.portfolioStocksGroupId = $ctx.args.portfolioStocksGroupId)
-        {}
-      PipelineConfig:
-        Functions:
-          - !GetAtt DeletePortfolioStocksGroupAppSyncFunctionConfiguration.FunctionId
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.stash.deletedPortfolioStocksGroup)
-
-  # addPortfolioStock
-  AddPortfolioStockMutationAppSyncResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn:
-      - AddPortfolioStockAppSyncFunctionConfiguration
-      - MapPortfolioStockAppSyncFunctionConfiguration
-    Properties:
-      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: addPortfolioStock
-      Kind: PIPELINE
-      RequestMappingTemplate: |
-        $util.qr($ctx.stash.put("portfolioId", $ctx.args.portfolioId))
-        $util.qr($ctx.stash.put("portfolioStocksGroupId", $ctx.args.portfolioStocksGroupId))
-        $util.qr($ctx.stash.put("input", $ctx.args.input))
-        {}
-      PipelineConfig:
-        Functions:
-          - !GetAtt AddPortfolioStockAppSyncFunctionConfiguration.FunctionId
-          - !GetAtt MapPortfolioStockAppSyncFunctionConfiguration.FunctionId
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.stash.portfolioStocks)
 
   # registerStock
   RegisterStockMutationAppSyncResolver:
