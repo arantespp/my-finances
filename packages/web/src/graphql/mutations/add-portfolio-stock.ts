@@ -7,8 +7,18 @@ import { PortfolioStockInput } from '../inputs';
 import { PortfolioStock } from '../types';
 
 export const ADD_PORTFOLIO_STOCK_MUTATION = gql`
-  mutation addPortfolioStock($portfolioId: ID!, $portfolioStocksGroupId: ID!, $input: PortfolioStockInput!) {
-    addPortfolioStock(portfolioId: $portfolioId, portfolioStocksGroupId: $portfolioStocksGroupId, input: $input) {
+  mutation addPortfolioStock(
+    $portfolioId: ID!
+    $portfolioStocksGroupId: ID!
+    $index: Int
+    $input: PortfolioStockInput!
+  ) {
+    addPortfolioStock(
+      portfolioId: $portfolioId
+      portfolioStocksGroupId: $portfolioStocksGroupId
+      index: $index
+      input: $input
+    ) {
       id
       index
       ticker
@@ -27,6 +37,7 @@ export interface AddPortfolioStockMutationResponse {
 export interface AddPortfolioStockMutationVariables {
   portfolioId: string;
   portfolioStocksGroupId: string;
+  index?: number;
   input: PortfolioStockInput;
 }
 

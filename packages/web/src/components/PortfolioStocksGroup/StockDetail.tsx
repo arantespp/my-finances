@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 
+import AddPortfolioStock from '@components/AddPortfolioStock';
 import RemovePortfolioStock from '@components/RemovePortfolioStock';
 
 import { PortfolioStock } from '@graphql/types';
@@ -12,13 +13,19 @@ interface Props {
   stock: PortfolioStock;
 }
 
-class StockDetail extends React.Component<Props> {
+interface State {
+  modifyStock: boolean;
+}
+
+class StockDetail extends React.Component<Props, State> {
+  state = {
+    modifyStock: false,
+  };
+
   render() {
-    const {
-      portfolioId,
-      portfolioStocksGroupId,
-      stock: { index, date, value, quantity, type },
-    } = this.props;
+    const { portfolioId, portfolioStocksGroupId, stock } = this.props;
+    const { index, date, value, quantity, type } = stock;
+    const { modifyStock } = this.state;
     return (
       <div className="StockDetail">
         <div className="columns">
@@ -38,6 +45,7 @@ class StockDetail extends React.Component<Props> {
             <span>V. Unit R$ {((value as number) / (quantity as number)).toFixed(2)}</span>
           </div>
           <div className="column">
+            <button onClick={this.modifyStock}>Modificar</button>
             <RemovePortfolioStock
               portfolioId={portfolioId}
               portfolioStocksGroupId={portfolioStocksGroupId}
@@ -45,35 +53,23 @@ class StockDetail extends React.Component<Props> {
             />
           </div>
         </div>
+        {modifyStock ? (
+          <div>
+            <AddPortfolioStock
+              portfolioId={portfolioId}
+              portfolioStocksGroupId={portfolioStocksGroupId}
+              index={index}
+              stock={stock}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
 
-  // private onClick = (
-  //   removePortfolioStock: MutationFn<RemovePortfolioStockMutationResponse, RemovePortfolioStockMutationVariables>,
-  // ) => async () => {
-  //   try {
-  //     await removePortfolioStock();
-  //   } catch (e) {
-  //     throw e;
-  //   }
-  // };
-
-  // private update: MutationUpdaterFn<RemovePortfolioStockMutationResponse> = (proxy, { data }) => {
-  //   const { portfolioId } = this.props;
-  //   const readQuery = proxy.readQuery<PortfolioQueryResponse, PortfolioQueryVariables>({
-  //     query: PORTFOLIO_STOCKS_QUERY,
-  //     variables: { portfolioId },
-  //   });
-  //   const newData: PortfolioQueryResponse = {
-  //     portfolio: { ...readQuery!.portfolio, stocks: data!.removePortfolioStock },
-  //   };
-  //   proxy.writeQuery({
-  //     query: PORTFOLIO_STOCKS_QUERY,
-  //     variables: { portfolioId },
-  //     data: newData,
-  //   });
-  // };
+  private modifyStock = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    this.setState({ modifyStock: !this.state.modifyStock });
+  };
 }
 
 export default StockDetail;

@@ -17,11 +17,13 @@ import {
 } from '@graphql/mutations/add-portfolio-stock';
 import { ALL_REGISTERED_STOCKS_QUERY, AllRegisteredStocksQuery } from '@graphql/queries/all-registered-stocks';
 import { PORTFOLIO_QUERY, PortfolioQueryResponse, PortfolioQueryVariables } from '@graphql/queries/portfolio';
-import { Portfolio, PortfolioStocksGroup, StockMetadata } from '@graphql/types';
+import { Portfolio, PortfolioStock, PortfolioStocksGroup, StockMetadata } from '@graphql/types';
 
 interface Props {
   portfolioId: string;
   portfolioStocksGroupId: string;
+  index?: number;
+  stock?: PortfolioStock;
 }
 
 interface State {
@@ -43,6 +45,19 @@ class AddPortfolioStock extends React.Component<Props, State> {
     type: PortfolioStockType.B,
   };
 
+  componentDidMount() {
+    const { stock } = this.props;
+    if (stock) {
+      this.setState({
+        date: utc(stock.date!).format(dateFormat),
+        ticker: stock.ticker!,
+        value: stock.value!,
+        quantity: stock.quantity!,
+        type: stock.type!,
+      });
+    }
+  }
+
   render() {
     return (
       <AddPortfolioStockMutation mutation={ADD_PORTFOLIO_STOCK_MUTATION} update={this.update}>
@@ -57,7 +72,7 @@ class AddPortfolioStock extends React.Component<Props, State> {
                       <div className="control is-expanded">
                         <DatePicker
                           className="input"
-                          selected={new Date()}
+                          selected={new Date(this.state.date)}
                           onChange={this.dateOnChange}
                           dateFormat="dd/MM/yyyy"
                         />
@@ -67,7 +82,7 @@ class AddPortfolioStock extends React.Component<Props, State> {
                       <label className="label">Tipo</label>
                       <div className="control is-expanded has-icons-left">
                         <div className="select">
-                          <select onChange={this.portfolioStockTypeOnChange}>
+                          <select onChange={this.portfolioStockTypeOnChange} value={this.state.type}>
                             <option value="" />
                             <option value={PortfolioStockType.B}>Compra</option>
                             <option value={PortfolioStockType.S}>Venda</option>
@@ -87,10 +102,14 @@ class AddPortfolioStock extends React.Component<Props, State> {
                             <label className="label">Ativo</label>
                             <div className="control is-expanded has-icons-left">
                               <div className="select">
-                                <select onChange={this.tickerOnChange}>
+                                <select onChange={this.tickerOnChange} value={this.state.ticker}>
                                   <option />
                                   {options.sort(this.sortStocks).map(({ ticker }, index) => {
-                                    return <option key={index}>{ticker}</option>;
+                                    return (
+                                      <option key={index} value={ticker}>
+                                        {ticker}
+                                      </option>
+                                    );
                                   })}
                                 </select>
                               </div>
@@ -182,12 +201,13 @@ class AddPortfolioStock extends React.Component<Props, State> {
   ) => async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      const { portfolioId, portfolioStocksGroupId } = this.props;
+      const { portfolioId, portfolioStocksGroupId, index } = this.props;
       const { ticker, quantity, value, date, type } = this.state;
       await addPortfolioStock({
         variables: {
           portfolioId,
           portfolioStocksGroupId,
+          index,
           input: {
             ticker,
             date,
