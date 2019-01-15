@@ -49,11 +49,18 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: !Sub 'Origin for WebCloudFrontDistributionOriginAccessIdentity. Stack: ${StackName}'
 
+  CloudFrontCertificateManagerCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: minhasfinancas.arantespp.com
+      ValidationMethod: DNS
+
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     DependsOn:
       - CloudFrontS3Bucket
       - CloudFrontCloudFrontOriginAccessIdentity
+      - CloudFrontCertificateManagerCertificate
     Properties:
       DistributionConfig:
         Aliases:
@@ -89,10 +96,9 @@ Resources:
               Forward: none
           ViewerProtocolPolicy: redirect-to-https
         PriceClass: PriceClass_100
-        # ViewerCertificate:
-        # *.triangulostecnologia.com
-        # AcmCertificateArn: arn:aws:acm:us-east-1:567757199502:certificate/073df1cf-c402-4d57-95fb-394e76a7a7c1
-        # SslSupportMethod: sni-only
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertificateManagerCertificate
+          SslSupportMethod: sni-only
 
 Outputs:
   CloudFrontS3Bucket:
