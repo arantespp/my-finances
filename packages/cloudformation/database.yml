@@ -30,17 +30,12 @@ Resources:
     Type: AWS::DynamoDB::Table
     Description: User Data DynamoDB Table
     Properties:
-      TableName: !Sub ${StackName}-users
       AttributeDefinitions:
         - AttributeName: hashKey
-          AttributeType: S
-        - AttributeName: rangeKey
           AttributeType: S
       KeySchema:
         - AttributeName: hashKey
           KeyType: HASH
-        - AttributeName: rangeKey
-          KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
 
   InvestmentsDynamoDBTable:

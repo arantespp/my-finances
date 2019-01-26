@@ -14,22 +14,10 @@ Parameters:
   StocksPriceDynamoDBTableRef:
     Type: String
 
-  StocksPriceDynamoDBTableArn:
-    Type: String
-
   UsersDynamoDBTableRef:
     Type: String
 
-  UsersDynamoDBTableArn:
-    Type: String
-
   InvestmentsDynamoDBTableRef:
-    Type: String
-
-  InvestmentsDynamoDBTableArn:
-    Type: String
-
-  IdentityPoolAuthorizedIAMRoleRef:
     Type: String
 
 Resources:
@@ -867,7 +855,7 @@ Resources:
       Name: StocksPriceAppSyncDataSource
       Description: AppSync data source for stocks price
       Type: AMAZON_DYNAMODB
-      ServiceRoleArn: !GetAtt AppSyncDynamoDBIAMRole.Arn
+      ServiceRoleArn: !GetAtt AppSyncIAMRole.Arn
       DynamoDBConfig:
         TableName: !Sub ${StocksPriceDynamoDBTableRef}
         AwsRegion: !Sub ${AWS::Region}
@@ -879,7 +867,7 @@ Resources:
       Name: UsersAppSyncDataSource
       Description: AppSync data source for user data
       Type: AMAZON_DYNAMODB
-      ServiceRoleArn: !GetAtt AppSyncDynamoDBIAMRole.Arn
+      ServiceRoleArn: !GetAtt AppSyncIAMRole.Arn
       DynamoDBConfig:
         TableName: !Sub ${UsersDynamoDBTableRef}
         AwsRegion: !Sub ${AWS::Region}
@@ -891,35 +879,15 @@ Resources:
       Name: InvestmentsAppSyncDataSource
       Description: AppSync data source for investments
       Type: AMAZON_DYNAMODB
-      ServiceRoleArn: !GetAtt AppSyncDynamoDBIAMRole.Arn
+      ServiceRoleArn: !GetAtt AppSyncIAMRole.Arn
       DynamoDBConfig:
         TableName: !Sub ${InvestmentsDynamoDBTableRef}
         AwsRegion: !Sub ${AWS::Region}
 
   ### IAM ###
-  AppSyncIAMPolicy:
-    Type: AWS::IAM::Policy
-    Description: Allow user consume AppSync when signed in
-    DependsOn: AppSyncGraphQLApi
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource:
-              - !Join ['/', [!GetAtt AppSyncGraphQLApi.Arn, '*']]
-      PolicyName: !Sub ${StackName}-appsync-iam-policy
-      Roles:
-        - !Sub ${IdentityPoolAuthorizedIAMRoleRef}
-
-  AppSyncDynamoDBIAMRole:
+  AppSyncIAMRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${StackName}-appsync-dynamodb-iam-role
-      ManagedPolicyArns:
-        - Ref: AppSyncDynamoDBIAMManagedPolicy
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -929,31 +897,34 @@ Resources:
             Principal:
               Service:
                 - appsync.amazonaws.com
-    DependsOn:
-      - AppSyncDynamoDBIAMManagedPolicy
-
-  AppSyncDynamoDBIAMManagedPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      Description: Managed policy to allow AWS AppSync to access the tables created by this template.
-      Path: /appsync/
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-              - dynamodb:PutItem
-              - dynamodb:DeleteItem
-              - dynamodb:UpdateItem
-              - dynamodb:Query
-              - dynamodb:Scan
-              - dynamodb:BatchGetItem
-              - dynamodb:BatchWriteItem
-            Resource:
-              - !Join ['', [!Sub '${StocksPriceDynamoDBTableArn}', '*']]
-              - !Join ['', [!Sub '${UsersDynamoDBTableArn}', '*']]
-              - !Join ['', [!Sub '${InvestmentsDynamoDBTableArn}', '*']]
+      Path: /
+      Policies:
+        - PolicyName: !Sub ${StackName}-appsync-iam-role-logs-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Join [':', ['arn:aws:logs', !Sub '${AWS::Region}', '*', '*']]
+        - PolicyName: !Sub ${StackName}-appsync-iam-role-dynamodb-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                Resource: '*'
 
 Outputs:
   AppSyncGraphQLApiEndpoint:

@@ -114,6 +114,10 @@ Resources:
                   - cognito-sync:*
                   - cognito-identity:*
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - appsync:GraphQL
+                Resource: '*'
 
   # Assigns the roles to the Identity Pool
   CognitoIdentityPoolRoleAttachment:
