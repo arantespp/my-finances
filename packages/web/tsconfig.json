@@ -22,6 +22,7 @@
       "@components/*": ["src/components/*"],
       "@config": ["src/config"],
       "@graphql/*": ["src/graphql/*"],
+      "@hocs/*": ["src/hocs/*"],
       "@utils": ["src/utils"]
     }
   },

@@ -37,8 +37,17 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       Definition: |
+        input UserInput {
+          email: String
+          firstName: String
+          lastName: String
+        }
+
         type User {
           id: ID!
+          email: String
+          firstName: String
+          lastName: String
           portfolios: [Portfolio]!
         }
         input PortfolioInput {
@@ -109,6 +118,8 @@ Resources:
         }
 
         type Mutation {
+          registerUser(userId: ID!, input: UserInput): User!
+
           newPortfolio(userId: ID!, input: PortfolioInput!): Portfolio!
           
           newPortfolioStocksGroup(portfolioId: ID!, input: PortfolioStocksGroupInput!): PortfolioStocksGroup!
@@ -125,8 +136,8 @@ Resources:
           
         }
         type Query {
-          user(id: ID!): User
-          portfolio(id: ID!): Portfolio
+          user(userId: ID!): User
+          portfolio(portfolioId: ID!): Portfolio
           allRegisteredStocks: [StockMetadata]!
           mostRecentStockPrice(ticker: ID!): StockPrice!
         }
@@ -591,6 +602,36 @@ Resources:
         $util.toJson($ctx.result.price)
 
   ## Mutation
+  # registerUser
+  RegisterUserMutationAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: registerUser
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($searchHelper = "")
+        #if($ctx.args.input.firstName)
+          #set($searchHelper = "$searchHelper$ctx.args.input.firstName.toLowerCase() ")
+        #end
+        #if($ctx.args.input.lastName)
+          #set($searchHelper = "$searchHelper$ctx.args.input.lastName.toLowerCase()")
+        #end
+        #set($ctx.args.input.searchHelper = $searchHelper)
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key": {
+            "hashKey" : { "S" : "$ctx.args.userId" },
+          },
+          "attributeValues": $util.dynamodb.toMapValuesJson($ctx.args.input)
+        }
+      ResponseMappingTemplate: |
+        #set($ctx.result.id = $ctx.result.hashKey)
+        $util.toJson($ctx.result)
+
   # addPortfolioStock
   AddPortfolioStockMutationAppSyncResolver:
     Type: AWS::AppSync::Resolver
@@ -813,7 +854,7 @@ Resources:
           "version" : "2017-02-28",
           "operation" : "GetItem",
           "key" : {
-            "hashKey" : { "S" : "$ctx.args.id" },
+            "hashKey" : { "S" : "$ctx.args.portfolioId" },
             "rangeKey": { "S" : "details" }
           }
         }
@@ -830,13 +871,17 @@ Resources:
       ApiId: !GetAtt AppSyncGraphQLApi.ApiId
       TypeName: Query
       FieldName: user
-      DataSourceName: !GetAtt NoneAppSyncDataSource.Name
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
       RequestMappingTemplate: |
         {
-          "version": "2017-02-28",
-          "payload": $utils.toJson($ctx.args)
+          "version" : "2017-02-28",
+          "operation" : "GetItem",
+          "key" : {
+            "hashKey" : { "S" : "$ctx.args.userId" },
+          }
         }
       ResponseMappingTemplate: |
+        #set($ctx.result.id = $ctx.result.hashKey)
         $util.toJson($ctx.result)
 
   ### DataSource

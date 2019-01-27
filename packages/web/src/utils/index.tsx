@@ -1,5 +1,4 @@
 /** @format */
 
-import * as userHandler from './user-handler';
-
-export { userHandler };
+export * from './decode';
+export * from './encode';

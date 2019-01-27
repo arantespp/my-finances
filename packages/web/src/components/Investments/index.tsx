@@ -9,8 +9,6 @@ import PortfolioCard from './PortfolioCard';
 
 import { USER_PORTFOLIOS_QUERY, UserPortfoliosQuery } from '@graphql/queries/user-portfolios';
 
-import { userHandler } from '@utils';
-
 import './styles.scss';
 interface State {
   userId: string;
@@ -22,8 +20,7 @@ class Investments extends React.Component<{}, State> {
   };
 
   async componentDidMount() {
-    const userId = await userHandler.userId();
-    this.setState({ userId });
+    this.setState({ userId: 'a' });
   }
 
   render() {
