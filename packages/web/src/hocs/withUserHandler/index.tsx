@@ -15,7 +15,13 @@ type Subtract<T, K> = Omit<T, keyof K>;
 
 type IncomingProps = any;
 
-export interface InjectedWithUserHandlerProps {}
+interface WithUserHandlerProps {
+  getUser: () => Promise<User>;
+}
+
+export interface InjectedWithUserHandlerProps {
+  userHandler: WithUserHandlerProps;
+}
 
 interface State {
   loading: boolean;
@@ -58,14 +64,12 @@ const withUserHandler = <P extends InjectedWithUserHandlerProps>(Component: Reac
         user = await this.registerUser();
       }
       this.setState({ loading: false, user });
-      const a = await Auth.currentAuthenticatedUser({ bypassCache: false });
-      console.log(a);
     }
 
     render() {
       const { ...props } = this.props as IncomingProps;
       const { loading } = this.state;
-      return loading ? <Loading /> : <Component {...props} userHandler={{ ...this.injectedWithUserHandler() }} />;
+      return loading ? <Loading /> : <Component {...props} userHandler={this.injectedWithUserHandler()} />;
     }
 
     private getUser = async (userId: string): Promise<User | null> => {
@@ -95,7 +99,9 @@ const withUserHandler = <P extends InjectedWithUserHandlerProps>(Component: Reac
       return cid;
     };
 
-    private injectedWithUserHandler = (): InjectedWithUserHandlerProps => ({});
+    private injectedWithUserHandler = (): WithUserHandlerProps => ({
+      getUser: () => this.state.user!,
+    });
 
     private getUserInfoFromCognito = async (): Promise<{
       email?: string;

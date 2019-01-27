@@ -4,23 +4,31 @@ import * as React from 'react';
 
 import Loading from '@components/Loading';
 
+import { InjectedWithUserHandlerProps, withUserHandler } from '@hocs/withUserHandler';
+
 import NewPortfolio from '../NewPortfolio';
 import PortfolioCard from './PortfolioCard';
 
 import { USER_PORTFOLIOS_QUERY, UserPortfoliosQuery } from '@graphql/queries/user-portfolios';
 
 import './styles.scss';
+
+interface Props extends InjectedWithUserHandlerProps {}
 interface State {
   userId: string;
 }
 
-class Investments extends React.Component<{}, State> {
+class Investments extends React.Component<Props, State> {
   state = {
     userId: '',
   };
 
   async componentDidMount() {
-    this.setState({ userId: 'a' });
+    const {
+      userHandler: { getUser },
+    } = this.props;
+    const userId = (await getUser()).id;
+    this.setState({ userId });
   }
 
   render() {
@@ -47,4 +55,4 @@ class Investments extends React.Component<{}, State> {
   }
 }
 
-export default Investments;
+export default withUserHandler(Investments);

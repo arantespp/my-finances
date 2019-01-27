@@ -7,7 +7,7 @@ import { User } from '../types';
 
 export const USER_PORTFOLIOS_QUERY = gql`
   query userPortfolios($userId: ID!) {
-    user(id: $userId) {
+    user(userId: $userId) {
       id
       portfolios {
         id
