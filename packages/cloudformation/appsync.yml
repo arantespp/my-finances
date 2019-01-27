@@ -137,6 +137,7 @@ Resources:
         }
         type Query {
           user(userId: ID!): User
+          searchUsers(key: String!): [User]
           portfolio(portfolioId: ID!): Portfolio
           allRegisteredStocks: [StockMetadata]!
           mostRecentStockPrice(ticker: ID!): StockPrice!
@@ -305,6 +306,48 @@ Resources:
         #set($deletedPortfolioStocksGroup.id = $ctx.result.rangeKey.split("_")[1])
         #set($ctx.stash.deletedPortfolioStocksGroup = $deletedPortfolioStocksGroup)
         $util.toJson($deletedPortfolioStocksGroup)
+
+  # G
+  GetUsersAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: GetUsersAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: !Sub
+        - |
+          #set($keys = [])
+          #if($ctx.prev.result)
+            #foreach($user in $ctx.prev.result)
+              $util.qr($keys.add({
+                "hashKey": { "S" : "$user.hashKey" }
+              }))
+            #end
+          #else
+            $util.qr($keys.add({
+              "hashKey": { "S" : "dumb" }
+            }))
+          #end
+          {
+            "version": "2018-05-29",
+            "operation": "BatchGetItem",
+            "tables" : {
+              "${TableName}": {
+                "keys": $util.toJson($keys)
+              }
+            }
+          }
+        - { TableName: !Sub '${UsersDynamoDBTableRef}' }
+      ResponseMappingTemplate: !Sub
+        - |
+          #set($users = $ctx.result.data["${TableName}"])
+          #foreach($user in $users)
+            #set($user.id = $user.hashKey)
+          #end
+          $util.toJson($users)
+        - { TableName: !Sub '${UsersDynamoDBTableRef}' }
 
   # M
   MapPortfolioStockAppSyncFunctionConfiguration:
@@ -511,6 +554,31 @@ Resources:
         $util.toJson($ctx.result.stocks)
 
   # S
+  SearchUsersAppSyncFunctionConfiguration:
+    Type: AWS::AppSync::FunctionConfiguration
+    DependsOn: AppSyncGraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      Name: SearchUsersAppSyncFunctionConfiguration
+      FunctionVersion: 2018-05-29
+      DataSourceName: !GetAtt UsersAppSyncDataSource.Name
+      RequestMappingTemplate: |
+        #set($key = $ctx.stash.key)
+        {
+          "version" : "2017-02-28",
+          "operation" : "Scan",
+          "index" : "index-search-helper",
+          "limit" : 10,
+          "filter" : {
+            "expression" : "contains(searchHelper, :searchHelper)",
+            "expressionValues" : {
+              ":searchHelper" : { "S" : "$key" }
+            },
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result.items)
+
   # T
   # U
   # V
@@ -617,8 +685,9 @@ Resources:
           #set($searchHelper = "$searchHelper$ctx.args.input.firstName.toLowerCase() ")
         #end
         #if($ctx.args.input.lastName)
-          #set($searchHelper = "$searchHelper$ctx.args.input.lastName.toLowerCase()")
+          #set($searchHelper = "$searchHelper$ctx.args.input.lastName.toLowerCase() ")
         #end
+        #set($searchHelper = "$searchHelper$ctx.args.userId.toLowerCase()")
         #set($ctx.args.input.searchHelper = $searchHelper)
         {
           "version" : "2017-02-28",
@@ -882,6 +951,27 @@ Resources:
         }
       ResponseMappingTemplate: |
         #set($ctx.result.id = $ctx.result.hashKey)
+        $util.toJson($ctx.result)
+
+  # searchUsers
+  SearchUsersyAppSyncResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn:
+      - SearchUsersAppSyncFunctionConfiguration
+      - GetUsersAppSyncFunctionConfiguration
+    Properties:
+      ApiId: !GetAtt AppSyncGraphQLApi.ApiId
+      TypeName: Query
+      FieldName: searchUsers
+      Kind: PIPELINE
+      RequestMappingTemplate: |
+        #set($ctx.stash.key = $ctx.args.key)
+        {}
+      PipelineConfig:
+        Functions:
+          - !GetAtt SearchUsersAppSyncFunctionConfiguration.FunctionId
+          - !GetAtt GetUsersAppSyncFunctionConfiguration.FunctionId
+      ResponseMappingTemplate: |
         $util.toJson($ctx.result)
 
   ### DataSource

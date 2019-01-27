@@ -33,10 +33,19 @@ Resources:
       AttributeDefinitions:
         - AttributeName: hashKey
           AttributeType: S
+        - AttributeName: searchHelper
+          AttributeType: S
       KeySchema:
         - AttributeName: hashKey
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: index-search-helper
+          KeySchema:
+            - AttributeName: searchHelper
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
 
   InvestmentsDynamoDBTable:
     Type: AWS::DynamoDB::Table
